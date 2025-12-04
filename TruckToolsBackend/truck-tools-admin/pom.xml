@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.trucktools</groupId>
+        <artifactId>truck-tools</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>truck-tools-admin</artifactId>
+    <packaging>jar</packaging>
+    <name>truck-tools-admin</name>
+    <description>后台管理服务入口</description>
+
+    <dependencies>
+        <!-- 公共模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-common</artifactId>
+        </dependency>
+
+        <!-- 系统模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-system</artifactId>
+        </dependency>
+
+        <!-- 客户模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-customer</artifactId>
+        </dependency>
+
+        <!-- 邮件模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-email</artifactId>
+        </dependency>
+
+        <!-- 产品模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-product</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Actuator -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- 开发工具 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- 测试 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
+

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TruckTools - 卡车外贸工具平台 | 原型图</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 登录页面 -->
+    <div id="login-page" class="page active">
+        <div class="login-container">
+            <div class="login-left">
+                <div class="brand-showcase">
+                    <div class="logo-large">🚚</div>
+                    <h1>TruckTools</h1>
+                    <p class="tagline">卡车外贸一站式数字化工作平台</p>
+                    <div class="features-preview">
+                        <div class="feature-item">
+                            <span class="icon">📇</span>
+                            <span>AI名片识别</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="icon">📧</span>
+                            <span>批量邮件营销</span>
+                        </div>
+                        <div class="feature-item">
+                            <span class="icon">📊</span>
+                            <span>客户智能管理</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="login-right">
+                <div class="login-form-container">
+                    <h2>欢迎回来</h2>
+                    <p class="login-subtitle">登录您的账户，开始高效工作</p>
+                    <form class="login-form">
+                        <div class="form-group">
+                            <label>用户名/邮箱</label>
+                            <input type="text" placeholder="请输入用户名或邮箱" value="demo@trucktools.com">
+                        </div>
+                        <div class="form-group">
+                            <label>密码</label>
+                            <input type="password" placeholder="请输入密码" value="••••••••">
+                        </div>
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" checked> 7天免登录
+                            </label>
+                            <a href="#" class="forgot-link">忘记密码？</a>
+                        </div>
+                        <button type="button" class="btn-primary btn-login" onclick="showMainApp()">登 录</button>
+                    </form>
+                    <div class="register-link">
+                        还没有账户？ <a href="#" onclick="showRegister()">立即注册</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主应用界面 -->
+    <div id="main-app" class="page">
+        <!-- 顶部导航栏 -->
+        <header class="top-navbar">
+            <div class="navbar-left">
+                <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="brand">
+                    <span class="logo">🚚</span>
+                    <span class="brand-name">TruckTools</span>
+                    <span class="brand-subtitle">卡车外贸工具平台</span>
+                </div>
+            </div>
+            <div class="navbar-center">
+                <div class="global-search">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" placeholder="搜索客户、邮件模板...">
+                    <span class="search-shortcut">Ctrl+K</span>
+                </div>
+            </div>
+            <div class="navbar-right">
+                <button class="nav-icon-btn" title="通知中心">
+                    <span>🔔</span>
+                    <span class="badge">3</span>
+                </button>
+                <button class="nav-icon-btn" title="帮助文档">❓</button>
+                <div class="user-dropdown">
+                    <div class="user-avatar">张</div>
+                    <span class="user-name">张三</span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="app-container">
+            <!-- 侧边栏 -->
+            <aside class="sidebar" id="sidebar">
+                <nav class="sidebar-nav">
+                    <div class="nav-section">
+                        <a href="#" class="nav-item" onclick="showPage('dashboard')" data-page="dashboard">
+                            <span class="nav-icon">📊</span>
+                            <span class="nav-text">工作台</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">业务模块</div>
+                        <a href="#" class="nav-item active" onclick="showPage('customers')" data-page="customers">
+                            <span class="nav-icon">👥</span>
+                            <span class="nav-text">客户管理</span>
+                        </a>
+                        <div class="nav-submenu" id="customer-submenu">
+                            <a href="#" class="submenu-item active" onclick="showPage('card-upload')">名片识别与录入</a>
+                            <a href="#" class="submenu-item" onclick="showPage('excel-import')">Excel批量导入</a>
+                            <a href="#" class="submenu-item" onclick="showPage('customer-list')">客户信息表格</a>
+                        </div>
+                        
+                        <a href="#" class="nav-item" onclick="showPage('email')" data-page="email">
+                            <span class="nav-icon">📧</span>
+                            <span class="nav-text">邮件营销</span>
+                        </a>
+                        <div class="nav-submenu hidden" id="email-submenu">
+                            <a href="#" class="submenu-item" onclick="showPage('email-template')">邮件模板管理</a>
+                            <a href="#" class="submenu-item" onclick="showPage('email-send')">批量发送</a>
+                            <a href="#" class="submenu-item" onclick="showPage('email-logs')">发送日志</a>
+                        </div>
+
+                        <a href="#" class="nav-item disabled" onclick="showPage('sales')">
+                            <span class="nav-icon">💼</span>
+                            <span class="nav-text">销售管理</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                        <a href="#" class="nav-item disabled" onclick="showPage('logistics')">
+                            <span class="nav-icon">🚚</span>
+                            <span class="nav-text">物流跟踪</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                        <a href="#" class="nav-item disabled" onclick="showPage('supply')">
+                            <span class="nav-icon">📦</span>
+                            <span class="nav-text">供应链管理</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                        <a href="#" class="nav-item disabled" onclick="showPage('docs')">
+                            <span class="nav-icon">📄</span>
+                            <span class="nav-text">文档中心</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                        <a href="#" class="nav-item disabled" onclick="showPage('analytics')">
+                            <span class="nav-icon">📈</span>
+                            <span class="nav-text">数据分析</span>
+                            <span class="nav-badge coming">即将推出</span>
+                        </a>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">系统</div>
+                        <a href="#" class="nav-item" onclick="showPage('settings')" data-page="settings">
+                            <span class="nav-icon">⚙️</span>
+                            <span class="nav-text">系统设置</span>
+                        </a>
+                    </div>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <a href="#" class="roadmap-link" onclick="showPage('roadmap')">
+                        <span>🗺️</span>
+                        <span>功能路线图</span>
+                    </a>
+                </div>
+            </aside>
+
+            <!-- 主内容区域 -->
+            <main class="main-content" id="main-content">
+                <!-- 内容将通过JS动态加载 -->
+            </main>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trucktools.product.mapper.ProductMapper">
+
+    <!-- 根据多个OE号查询产品 -->
+    <select id="selectByOeNos" resultType="com.trucktools.product.entity.Product">
+        SELECT * FROM t_product 
+        WHERE user_id = #{userId} AND deleted = 0
+        AND oe_no IN 
+        <foreach collection="oeNos" item="oeNo" open="(" separator="," close=")">
+            #{oeNo}
+        </foreach>
+    </select>
+
+</mapper>
+

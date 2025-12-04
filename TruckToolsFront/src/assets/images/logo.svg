@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="truckGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1677ff"/>
+      <stop offset="100%" style="stop-color:#4096ff"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- 卡车车身 -->
+  <rect x="4" y="24" width="32" height="20" rx="3" fill="url(#truckGradient)"/>
+  
+  <!-- 驾驶室 -->
+  <path d="M36 28 L52 28 L56 36 L56 44 L36 44 Z" fill="url(#truckGradient)"/>
+  
+  <!-- 车窗 -->
+  <path d="M40 30 L50 30 L53 36 L40 36 Z" fill="#e6f4ff"/>
+  
+  <!-- 车轮 -->
+  <circle cx="16" cy="48" r="6" fill="#374151"/>
+  <circle cx="16" cy="48" r="3" fill="#9ca3af"/>
+  <circle cx="48" cy="48" r="6" fill="#374151"/>
+  <circle cx="48" cy="48" r="3" fill="#9ca3af"/>
+  
+  <!-- 工具图标 -->
+  <circle cx="20" cy="34" r="4" fill="#e6f4ff"/>
+  <path d="M18 32 L22 36 M22 32 L18 36" stroke="#1677ff" stroke-width="1.5" stroke-linecap="round"/>
+  
+  <!-- 装饰线条 -->
+  <rect x="8" y="38" width="24" height="2" rx="1" fill="#e6f4ff" opacity="0.5"/>
+</svg>
+

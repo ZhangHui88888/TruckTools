@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.trucktools</groupId>
+        <artifactId>truck-tools</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>truck-tools-email</artifactId>
+    <packaging>jar</packaging>
+    <name>truck-tools-email</name>
+    <description>邮件营销模块 - 邮件模板、批量发送</description>
+
+    <dependencies>
+        <!-- 公共模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-common</artifactId>
+        </dependency>
+
+        <!-- 系统模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-system</artifactId>
+        </dependency>
+
+        <!-- 客户模块 -->
+        <dependency>
+            <groupId>com.trucktools</groupId>
+            <artifactId>truck-tools-customer</artifactId>
+        </dependency>
+
+        <!-- EasyExcel -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>easyexcel</artifactId>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+
+</project>
+
