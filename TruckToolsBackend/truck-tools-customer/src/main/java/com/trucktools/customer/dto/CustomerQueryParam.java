@@ -21,9 +21,15 @@ public class CustomerQueryParam extends PageQuery {
 
     @Schema(description = "优先级")
     private Integer priority;
+    
+    @Schema(description = "优先级列表(逗号分隔)")
+    private String priorities;
 
     @Schema(description = "国家")
     private String country;
+    
+    @Schema(description = "国家列表(逗号分隔)")
+    private String countries;
 
     @Schema(description = "来源")
     private String source;

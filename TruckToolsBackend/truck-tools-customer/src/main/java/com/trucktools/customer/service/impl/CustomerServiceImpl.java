@@ -66,8 +66,25 @@ public class CustomerServiceImpl implements CustomerService {
         if (param.getPriority() != null) {
             wrapper.eq(Customer::getPriority, param.getPriority());
         }
+        // 多选优先级筛选
+        if (StringUtils.hasText(param.getPriorities())) {
+            String[] priorityArr = param.getPriorities().split(",");
+            List<Integer> priorityList = java.util.Arrays.stream(priorityArr)
+                    .map(String::trim)
+                    .map(Integer::parseInt)
+                    .collect(Collectors.toList());
+            wrapper.in(Customer::getPriority, priorityList);
+        }
         if (StringUtils.hasText(param.getCountry())) {
             wrapper.eq(Customer::getCountry, param.getCountry());
+        }
+        // 多选国家筛选
+        if (StringUtils.hasText(param.getCountries())) {
+            String[] countryArr = param.getCountries().split(",");
+            List<String> countryList = java.util.Arrays.stream(countryArr)
+                    .map(String::trim)
+                    .collect(Collectors.toList());
+            wrapper.in(Customer::getCountry, countryList);
         }
         if (StringUtils.hasText(param.getSource())) {
             wrapper.eq(Customer::getSource, param.getSource());

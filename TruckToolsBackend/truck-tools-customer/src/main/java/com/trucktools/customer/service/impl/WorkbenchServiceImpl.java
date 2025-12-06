@@ -190,7 +190,7 @@ public class WorkbenchServiceImpl implements WorkbenchService {
     @Transactional(rollbackFor = Exception.class)
     public WorkbenchEventVO processEvent(Long userId, ProcessEventRequest request) {
         // 查询原事件
-        CustomerEvent originalEvent = customerEventMapper.selectById(request.getEventId());
+        CustomerEvent originalEvent = customerEventMapper.selectById(request.getEventIdAsLong());
         if (originalEvent == null || originalEvent.getDeleted() == 1) {
             throw new BusinessException("事件不存在");
         }
@@ -203,7 +203,8 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         newEvent.setId(IdGenerator.nextId());
         newEvent.setUserId(userId);
         newEvent.setCustomerId(originalEvent.getCustomerId());
-        newEvent.setEventTime(request.getProcessTime() != null ? request.getProcessTime() : LocalDateTime.now());
+        LocalDateTime processTime = request.getProcessTimeAsLocalDateTime();
+        newEvent.setEventTime(processTime != null ? processTime : LocalDateTime.now());
         newEvent.setEventContent(request.getProcessContent());
         newEvent.setEventStatus(EVENT_STATUS_PENDING_CUSTOMER); // 处理完成后等待客户反馈
         newEvent.setIsSystemGenerated(0);
