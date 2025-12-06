@@ -39,7 +39,7 @@ echo.
 :: Build project
 echo [BUILD] Compiling project...
 echo.
-call mvn clean package -DskipTests
+call mvn package -DskipTests
 if !errorlevel! neq 0 (
     echo.
     echo [ERROR] Build failed. Check error messages above.

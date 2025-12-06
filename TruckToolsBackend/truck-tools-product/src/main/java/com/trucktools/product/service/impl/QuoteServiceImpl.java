@@ -1077,14 +1077,14 @@ public class QuoteServiceImpl implements QuoteService {
     }
 
     /**
-     * 创建简约无价格样式
+     * 创建简约无价格样式 - 红色加粗提醒
      */
     private CellStyle createSimpleNoPriceStyle(Workbook workbook, CellStyle baseStyle) {
         CellStyle style = workbook.createCellStyle();
         style.cloneStyleFrom(baseStyle);
         Font font = workbook.createFont();
-        font.setItalic(true);
-        font.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        font.setBold(true);
+        font.setColor(IndexedColors.RED.getIndex());
         font.setFontHeightInPoints((short) 10);
         font.setFontName("Arial");
         style.setFont(font);
