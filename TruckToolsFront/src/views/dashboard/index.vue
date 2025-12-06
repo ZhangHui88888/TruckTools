@@ -1,152 +1,618 @@
 <template>
   <div class="dashboard-page">
-    <div class="coming-soon-container">
-      <div class="coming-soon-icon">
-        <DashboardOutlined />
-      </div>
-      <h2 class="coming-soon-title">工作台即将推出</h2>
-      <p class="coming-soon-desc">
-        我们正在努力开发工作台功能，包括数据概览、待办事项、快捷入口等。<br />
-        预计在 <strong>2026 Q1</strong> 上线，敬请期待！
-      </p>
-      <div class="coming-soon-actions">
-        <a-button type="primary" @click="$router.push('/customer/list')">
-          <TeamOutlined />
-          前往客户管理
+    <!-- 统计卡片区域 -->
+    <a-row :gutter="[16, 16]" class="stats-row">
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-pending" :loading="statsLoading">
+          <a-statistic
+            title="待处理"
+            :value="stats.pendingCount"
+            :value-style="{ color: '#cf1322' }"
+          >
+            <template #prefix>
+              <ExclamationCircleOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-waiting" :loading="statsLoading">
+          <a-statistic
+            title="等待反馈"
+            :value="stats.waitingCount"
+            :value-style="{ color: '#faad14' }"
+          >
+            <template #prefix>
+              <ClockCircleOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-today" :loading="statsLoading">
+          <a-statistic
+            title="今日处理"
+            :value="stats.todayProcessedCount"
+            :value-style="{ color: '#52c41a' }"
+          >
+            <template #prefix>
+              <CheckCircleOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-overdue" :loading="statsLoading">
+          <a-statistic
+            title="超时未跟进"
+            :value="stats.overdueCount"
+            :value-style="{ color: '#ff4d4f' }"
+          >
+            <template #prefix>
+              <WarningOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-weekly" :loading="statsLoading">
+          <a-statistic
+            title="本周新增"
+            :value="stats.weeklyNewCustomerCount"
+            :value-style="{ color: '#1677ff' }"
+          >
+            <template #prefix>
+              <UserAddOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-active" :loading="statsLoading">
+          <a-statistic
+            title="活跃客户"
+            :value="stats.activeCustomerCount"
+            :value-style="{ color: '#722ed1' }"
+          >
+            <template #prefix>
+              <TeamOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-total" :loading="statsLoading">
+          <a-statistic
+            title="总客户数"
+            :value="stats.totalCustomerCount"
+            :value-style="{ color: '#13c2c2' }"
+          >
+            <template #prefix>
+              <ContactsOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+      <a-col :xs="12" :sm="8" :md="6" :lg="4" :xl="3">
+        <a-card class="stat-card stat-stopped" :loading="statsLoading">
+          <a-statistic
+            title="已停止跟进"
+            :value="stats.stoppedFollowUpCount"
+            :value-style="{ color: '#8c8c8c' }"
+          >
+            <template #prefix>
+              <StopOutlined />
+            </template>
+          </a-statistic>
+        </a-card>
+      </a-col>
+    </a-row>
+
+    <!-- 快捷操作区域 -->
+    <a-card class="quick-actions-card" title="快捷操作">
+      <a-space size="middle">
+        <a-button type="primary" @click="$router.push('/customer/create')">
+          <UserAddOutlined />
+          新增客户
         </a-button>
-        <a-button @click="$router.push('/roadmap')">
-          <FlagOutlined />
-          查看功能路线图
+        <a-button @click="$router.push('/email/send')">
+          <MailOutlined />
+          发送邮件
         </a-button>
-      </div>
-      
-      <div class="feature-preview">
-        <h4>即将推出的功能</h4>
-        <a-row :gutter="[24, 24]">
-          <a-col :xs="24" :sm="8">
-            <div class="feature-card">
-              <PieChartOutlined class="feature-icon" />
-              <h5>数据概览</h5>
-              <p>客户数量、邮件发送统计、业务数据一目了然</p>
+        <a-button @click="$router.push('/product/quote')">
+          <DollarOutlined />
+          产品报价
+        </a-button>
+        <a-button @click="$router.push('/customer/list')">
+          <UnorderedListOutlined />
+          查看所有客户
+        </a-button>
+      </a-space>
+    </a-card>
+
+    <!-- 事件列表区域 -->
+    <a-card class="events-card">
+      <template #title>
+        <div class="events-header">
+          <span>事件跟进</span>
+          <a-space>
+            <a-select
+              v-model:value="queryParams.eventStatus"
+              style="width: 140px"
+              @change="fetchEventList"
+            >
+              <a-select-option value="all">全部状态</a-select-option>
+              <a-select-option value="pending_us">等待我方处理</a-select-option>
+              <a-select-option value="pending_customer">等待客户反馈</a-select-option>
+            </a-select>
+            <a-input-search
+              v-model:value="queryParams.customerKeyword"
+              placeholder="搜索客户名称"
+              style="width: 200px"
+              @search="fetchEventList"
+            />
+            <a-checkbox v-model:checked="queryParams.overdueOnly" @change="fetchEventList">
+              仅显示超时
+            </a-checkbox>
+          </a-space>
+        </div>
+      </template>
+
+      <a-table
+        :columns="columns"
+        :data-source="eventList"
+        :loading="eventsLoading"
+        :pagination="pagination"
+        row-key="id"
+        @change="handleTableChange"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'customer'">
+            <div class="customer-info">
+              <a-tag :color="getPriorityColor(record.customerPriority)" class="priority-tag">
+                {{ getPriorityText(record.customerPriority) }}
+              </a-tag>
+              <a @click="goToCustomerDetail(record.customerId)" class="customer-name">
+                {{ record.customerName }}
+              </a>
+              <span v-if="record.customerCompany" class="customer-company">
+                {{ record.customerCompany }}
+              </span>
             </div>
-          </a-col>
-          <a-col :xs="24" :sm="8">
-            <div class="feature-card">
-              <CheckCircleOutlined class="feature-icon" />
-              <h5>待办事项</h5>
-              <p>客户跟进提醒、任务管理、工作日程</p>
+          </template>
+
+          <template v-else-if="column.key === 'eventContent'">
+            <div class="event-content">
+              <a-tag v-if="record.isSystemGenerated" color="orange" size="small">
+                系统提醒
+              </a-tag>
+              <span class="content-text">{{ truncateText(record.eventContent, 80) }}</span>
             </div>
-          </a-col>
-          <a-col :xs="24" :sm="8">
-            <div class="feature-card">
-              <ThunderboltOutlined class="feature-icon" />
-              <h5>快捷操作</h5>
-              <p>一键快速访问常用功能，提升工作效率</p>
-            </div>
-          </a-col>
-        </a-row>
-      </div>
-    </div>
+          </template>
+
+          <template v-else-if="column.key === 'eventStatus'">
+            <a-tag :color="record.eventStatus === 'pending_us' ? 'red' : 'green'">
+              {{ record.eventStatus === 'pending_us' ? '等待我方处理' : '等待客户反馈' }}
+            </a-tag>
+          </template>
+
+          <template v-else-if="column.key === 'waitingDays'">
+            <span :class="{ 'overdue-text': record.isOverdue }">
+              {{ record.waitingDays }} 天
+              <WarningOutlined v-if="record.isOverdue" class="overdue-icon" />
+            </span>
+          </template>
+
+          <template v-else-if="column.key === 'eventTime'">
+            {{ formatDateTime(record.eventTime) }}
+          </template>
+
+          <template v-else-if="column.key === 'actions'">
+            <a-space>
+              <a-button
+                v-if="record.eventStatus === 'pending_us'"
+                type="primary"
+                size="small"
+                @click="showProcessModal(record)"
+              >
+                <CheckOutlined />
+                处理
+              </a-button>
+              <a-button size="small" @click="goToCustomerDetail(record.customerId)">
+                <EyeOutlined />
+                详情
+              </a-button>
+              <a-popconfirm
+                title="确定不再跟进该客户吗？停止后将不再收到超时提醒。"
+                ok-text="确定停止"
+                cancel-text="取消"
+                ok-type="danger"
+                @confirm="handleStopFollowUp(record.customerId)"
+              >
+                <a-tooltip title="停止跟进后不再提醒">
+                  <a-button size="small" class="stop-btn">
+                    <StopOutlined />
+                  </a-button>
+                </a-tooltip>
+              </a-popconfirm>
+            </a-space>
+          </template>
+        </template>
+      </a-table>
+    </a-card>
+
+    <!-- 处理事件弹窗 -->
+    <a-modal
+      v-model:open="processModalVisible"
+      title="处理事件"
+      :confirm-loading="processLoading"
+      @ok="handleProcessEvent"
+      @cancel="closeProcessModal"
+    >
+      <a-form :label-col="{ span: 4 }" :wrapper-col="{ span: 20 }">
+        <a-form-item label="客户">
+          <span>{{ currentEvent?.customerName }}</span>
+        </a-form-item>
+        <a-form-item label="原事件">
+          <a-typography-paragraph
+            :ellipsis="{ rows: 3, expandable: true }"
+            :content="currentEvent?.eventContent"
+          />
+        </a-form-item>
+        <a-form-item label="处理内容" required>
+          <a-textarea
+            v-model:value="processForm.processContent"
+            :rows="4"
+            placeholder="请输入处理内容..."
+          />
+        </a-form-item>
+        <a-form-item label="处理时间">
+          <a-date-picker
+            v-model:value="processForm.processTime"
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            style="width: 100%"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { message } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import {
-  DashboardOutlined,
-  TeamOutlined,
-  FlagOutlined,
-  PieChartOutlined,
+  ExclamationCircleOutlined,
+  ClockCircleOutlined,
   CheckCircleOutlined,
-  ThunderboltOutlined
+  WarningOutlined,
+  UserAddOutlined,
+  TeamOutlined,
+  ContactsOutlined,
+  StopOutlined,
+  MailOutlined,
+  DollarOutlined,
+  UnorderedListOutlined,
+  CheckOutlined,
+  EyeOutlined
 } from '@ant-design/icons-vue'
+import { workbenchApi } from '@/api/workbench'
+import type { WorkbenchStats, WorkbenchEvent, WorkbenchEventQueryParams } from '@/api/workbench'
+
+const router = useRouter()
+
+// 统计数据
+const stats = ref<WorkbenchStats>({
+  pendingCount: 0,
+  waitingCount: 0,
+  todayProcessedCount: 0,
+  overdueCount: 0,
+  weeklyNewCustomerCount: 0,
+  activeCustomerCount: 0,
+  totalCustomerCount: 0,
+  stoppedFollowUpCount: 0
+})
+const statsLoading = ref(false)
+
+// 事件列表
+const eventList = ref<WorkbenchEvent[]>([])
+const eventsLoading = ref(false)
+const queryParams = reactive<WorkbenchEventQueryParams>({
+  page: 1,
+  pageSize: 10,
+  eventStatus: 'all',
+  customerKeyword: '',
+  overdueOnly: false,
+  excludeStoppedFollowUp: true
+})
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showSizeChanger: true,
+  showQuickJumper: true,
+  showTotal: (total: number) => `共 ${total} 条`
+})
+
+// 处理事件弹窗
+const processModalVisible = ref(false)
+const processLoading = ref(false)
+const currentEvent = ref<WorkbenchEvent | null>(null)
+const processForm = reactive({
+  processContent: '',
+  processTime: dayjs()
+})
+
+// 表格列定义
+const columns = [
+  {
+    title: '客户',
+    key: 'customer',
+    width: 200
+  },
+  {
+    title: '事件内容',
+    key: 'eventContent',
+    ellipsis: true
+  },
+  {
+    title: '状态',
+    key: 'eventStatus',
+    width: 120
+  },
+  {
+    title: '等待天数',
+    key: 'waitingDays',
+    width: 100
+  },
+  {
+    title: '事件时间',
+    key: 'eventTime',
+    width: 160
+  },
+  {
+    title: '操作',
+    key: 'actions',
+    width: 200,
+    fixed: 'right'
+  }
+]
+
+// 获取统计数据
+const fetchStats = async () => {
+  statsLoading.value = true
+  try {
+    const res = await workbenchApi.getStats()
+    stats.value = res.data
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  } finally {
+    statsLoading.value = false
+  }
+}
+
+// 获取事件列表
+const fetchEventList = async () => {
+  eventsLoading.value = true
+  try {
+    const params = {
+      ...queryParams,
+      page: pagination.current,
+      pageSize: pagination.pageSize
+    }
+    const res = await workbenchApi.getEventList(params)
+    eventList.value = res.data.list
+    pagination.total = res.data.pagination.total
+  } catch (error) {
+    console.error('获取事件列表失败:', error)
+  } finally {
+    eventsLoading.value = false
+  }
+}
+
+// 表格分页变化
+const handleTableChange = (pag: any) => {
+  pagination.current = pag.current
+  pagination.pageSize = pag.pageSize
+  fetchEventList()
+}
+
+// 显示处理弹窗
+const showProcessModal = (event: WorkbenchEvent) => {
+  currentEvent.value = event
+  processForm.processContent = ''
+  processForm.processTime = dayjs()
+  processModalVisible.value = true
+}
+
+// 关闭处理弹窗
+const closeProcessModal = () => {
+  processModalVisible.value = false
+  currentEvent.value = null
+}
+
+// 处理事件
+const handleProcessEvent = async () => {
+  if (!processForm.processContent.trim()) {
+    message.warning('请输入处理内容')
+    return
+  }
+  if (!currentEvent.value) return
+
+  processLoading.value = true
+  try {
+    await workbenchApi.processEvent({
+      eventId: currentEvent.value.id,
+      processContent: processForm.processContent,
+      processTime: processForm.processTime?.format('YYYY-MM-DD HH:mm:ss')
+    })
+    message.success('处理成功')
+    closeProcessModal()
+    fetchStats()
+    fetchEventList()
+  } catch (error) {
+    console.error('处理事件失败:', error)
+    message.error('处理失败')
+  } finally {
+    processLoading.value = false
+  }
+}
+
+// 停止跟进
+const handleStopFollowUp = async (customerId: string) => {
+  try {
+    await workbenchApi.stopFollowUp({ customerId })
+    message.success('已停止跟进')
+    fetchStats()
+    fetchEventList()
+  } catch (error) {
+    console.error('停止跟进失败:', error)
+    message.error('操作失败')
+  }
+}
+
+// 跳转到客户详情
+const goToCustomerDetail = (customerId: string) => {
+  router.push(`/customer/${customerId}`)
+}
+
+// 工具函数
+const getPriorityColor = (priority: number) => {
+  const colors: Record<number, string> = {
+    0: 'red',
+    1: 'orange',
+    2: 'blue',
+    3: 'default'
+  }
+  return colors[priority] ?? 'default'
+}
+
+const getPriorityText = (priority: number) => {
+  const texts: Record<number, string> = {
+    0: 'T0',
+    1: 'T1',
+    2: 'T2',
+    3: 'T3'
+  }
+  return texts[priority] ?? `T${priority}`
+}
+
+const truncateText = (text: string, maxLength: number) => {
+  if (!text) return ''
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+}
+
+const formatDateTime = (dateStr: string) => {
+  if (!dateStr) return ''
+  return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
+}
+
+// 初始化
+onMounted(() => {
+  fetchStats()
+  fetchEventList()
+})
 </script>
 
 <style lang="less" scoped>
 .dashboard-page {
-  min-height: calc(100vh - 64px - 48px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.coming-soon-container {
-  text-align: center;
-  max-width: 800px;
-  padding: 48px;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.coming-soon-icon {
-  font-size: 72px;
-  color: #1677ff;
-  margin-bottom: 24px;
-  opacity: 0.8;
-}
-
-.coming-soon-title {
-  font-size: 28px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 16px;
-}
-
-.coming-soon-desc {
-  font-size: 16px;
-  color: #6b7280;
-  line-height: 1.8;
-  margin: 0 0 32px;
-  
-  strong {
-    color: #1677ff;
-  }
-}
-
-.coming-soon-actions {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  margin-bottom: 48px;
-}
-
-.feature-preview {
-  padding-top: 32px;
-  border-top: 1px solid #e5e7eb;
-  
-  h4 {
-    font-size: 18px;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 24px;
-  }
-}
-
-.feature-card {
   padding: 24px;
-  background: #f9fafb;
-  border-radius: 12px;
-  text-align: center;
-  height: 100%;
+  background: #f5f5f5;
+  min-height: calc(100vh - 64px);
+}
+
+.stats-row {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  border-radius: 8px;
   
-  .feature-icon {
-    font-size: 32px;
+  :deep(.ant-statistic-title) {
+    font-size: 13px;
+    color: #666;
+  }
+  
+  :deep(.ant-statistic-content) {
+    font-size: 24px;
+  }
+  
+  :deep(.ant-statistic-content-prefix) {
+    margin-right: 8px;
+  }
+}
+
+.quick-actions-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+}
+
+.events-card {
+  border-radius: 8px;
+  
+  .events-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.customer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  
+  .priority-tag {
+    width: fit-content;
+  }
+  
+  .customer-name {
+    font-weight: 500;
     color: #1677ff;
-    margin-bottom: 16px;
+    cursor: pointer;
+    
+    &:hover {
+      text-decoration: underline;
+    }
   }
   
-  h5 {
-    font-size: 16px;
-    font-weight: 600;
-    color: #374151;
-    margin: 0 0 8px;
+  .customer-company {
+    font-size: 12px;
+    color: #999;
   }
+}
+
+.event-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   
-  p {
-    font-size: 14px;
-    color: #6b7280;
-    margin: 0;
-    line-height: 1.6;
+  .content-text {
+    flex: 1;
+    line-height: 1.5;
+  }
+}
+
+.overdue-text {
+  color: #ff4d4f;
+  font-weight: 500;
+  
+  .overdue-icon {
+    margin-left: 4px;
+  }
+}
+
+.stop-btn {
+  color: #8c8c8c;
+  border-color: #d9d9d9;
+  
+  &:hover {
+    color: #ff4d4f;
+    border-color: #ff4d4f;
+    background: #fff1f0;
   }
 }
 </style>

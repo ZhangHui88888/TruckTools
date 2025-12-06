@@ -26,7 +26,7 @@ const routes: RouteRecordRaw[] = [
         path: 'dashboard',
         name: 'Dashboard',
         component: () => import('@/views/dashboard/index.vue'),
-        meta: { title: '工作台', icon: 'dashboard', released: false }
+        meta: { title: '工作台', icon: 'dashboard', released: true }
       },
       // 客户管理模块
       {

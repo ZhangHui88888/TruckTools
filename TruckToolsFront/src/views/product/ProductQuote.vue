@@ -5,6 +5,12 @@
         <h1 class="page-title">搜索报价</h1>
         <p class="page-subtitle">按OE号搜索产品并生成报价单</p>
       </div>
+      <div class="header-actions">
+        <a-button type="primary" @click="$router.push('/product/quote-import')">
+          <FileExcelOutlined />
+          报价导入
+        </a-button>
+      </div>
     </div>
 
     <div class="main-content">
@@ -257,7 +263,8 @@ import {
   DownloadOutlined,
   SyncOutlined,
   LockOutlined,
-  UnlockOutlined
+  UnlockOutlined,
+  FileExcelOutlined
 } from '@ant-design/icons-vue'
 import { productApi } from '@/api/product'
 import type { QuoteItem, QuoteRequest, Product } from '@/api/product'
@@ -597,6 +604,9 @@ watch(quoteItems, (items) => {
 <style lang="less" scoped>
 .product-quote-page {
   .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     margin-bottom: 24px;
     
     .page-title {

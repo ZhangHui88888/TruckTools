@@ -34,5 +34,14 @@ public class CustomerEvent extends BaseEntity {
 
     @Schema(description = "事件进度状态: pending_customer=等待客户回复, pending_us=等待我们回复")
     private String eventStatus;
+
+    @Schema(description = "是否系统自动生成: 0=否, 1=是")
+    private Integer isSystemGenerated;
+
+    @Schema(description = "关联的父事件ID")
+    private Long parentEventId;
+
+    @Schema(description = "附件URL列表(JSON格式)")
+    private String attachmentUrls;
 }
 

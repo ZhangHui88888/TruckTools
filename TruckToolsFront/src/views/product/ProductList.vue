@@ -34,13 +34,9 @@
           <a-radio-button value="avg">平均价</a-radio-button>
           <a-radio-button value="max">最高价</a-radio-button>
         </a-radio-group>
-        <a-button @click="$router.push('/product/import')">
+        <a-button type="primary" @click="$router.push('/product/import')">
           <UploadOutlined />
           导入产品
-        </a-button>
-        <a-button type="primary" @click="$router.push('/product/quote-import')">
-          <FileExcelOutlined />
-          报价导入
         </a-button>
       </div>
     </div>

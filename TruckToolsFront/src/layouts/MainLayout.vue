@@ -189,7 +189,7 @@ const menuItems = [
     icon: DashboardOutlined,
     label: '工作台',
     path: '/dashboard',
-    released: false
+    released: true
   },
   {
     key: 'customer',

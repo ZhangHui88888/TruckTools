@@ -81,6 +81,21 @@ public class Customer extends BaseEntity {
     @Schema(description = "跟进状态: pending_customer=等待客户回复, pending_us=等待我们回复, completed=已完成")
     private String followUpStatus;
 
+    @Schema(description = "是否停止跟进: 0=否, 1=是")
+    private Integer stopFollowUp;
+
+    @Schema(description = "停止跟进时间")
+    private LocalDateTime stopFollowUpTime;
+
+    @Schema(description = "停止跟进原因")
+    private String stopFollowUpReason;
+
+    @Schema(description = "最后事件时间")
+    private LocalDateTime lastEventTime;
+
+    @Schema(description = "待处理事件数量")
+    private Integer pendingEventCount;
+
     @Schema(description = "备注信息")
     private String remark;
 
