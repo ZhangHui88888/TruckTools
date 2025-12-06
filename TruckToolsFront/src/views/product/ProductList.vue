@@ -178,8 +178,10 @@
     </div>
 
     <!-- 图片预览 -->
-    <a-modal v-model:open="imagePreviewVisible" :footer="null" :width="600" title="产品图片">
-      <img :src="previewImage" alt="产品图片" style="width: 100%" />
+    <a-modal v-model:open="imagePreviewVisible" :footer="null" width="auto" title="产品图片" centered>
+      <div class="image-preview-container">
+        <img :src="previewImage" alt="产品图片" />
+      </div>
     </a-modal>
 
     <!-- 编辑弹窗 -->
@@ -739,6 +741,21 @@ onMounted(() => {
         font-weight: 500;
       }
     }
+  }
+}
+
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 300px;
+  max-width: 90vw;
+  max-height: 80vh;
+  
+  img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
   }
 }
 </style>

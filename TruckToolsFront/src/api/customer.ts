@@ -19,6 +19,7 @@ export interface Customer {
   wechatQrcode?: string
   whatsappName?: string
   whatsappQrcode?: string
+  followUpStatus?: string
   remark?: string
   source: 'manual' | 'ocr' | 'import'
   sourceFile?: string
@@ -97,6 +98,25 @@ export interface ImportStatus {
   startedAt?: string
   completedAt?: string
   logFileUrl?: string
+}
+
+export interface CustomerEvent {
+  id: string
+  customerId: string
+  eventTime: string
+  eventLocation?: string
+  eventContent: string
+  eventStatus: 'pending_customer' | 'pending_us'
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CustomerEventRequest {
+  customerId: string
+  eventTime: string
+  eventLocation?: string
+  eventContent: string
+  eventStatus: 'pending_customer' | 'pending_us'
 }
 
 export const customerApi = {
@@ -199,6 +219,33 @@ export const customerApi = {
   // 查询导入状态
   getImportStatus(importId: string) {
     return http.get<ImportStatus>(`/customers/import/${importId}/status`)
+  },
+
+  // ===================== 客户事件相关 =====================
+
+  // 创建事件
+  createEvent(data: CustomerEventRequest) {
+    return http.post<CustomerEvent>('/customer-events', data)
+  },
+
+  // 更新事件
+  updateEvent(id: string, data: CustomerEventRequest) {
+    return http.put<CustomerEvent>(`/customer-events/${id}`, data)
+  },
+
+  // 删除事件
+  deleteEvent(id: string) {
+    return http.delete(`/customer-events/${id}`)
+  },
+
+  // 获取客户的所有事件
+  getEventsByCustomerId(customerId: string) {
+    return http.get<CustomerEvent[]>(`/customer-events/customer/${customerId}`)
+  },
+
+  // 获取事件详情
+  getEventDetail(id: string) {
+    return http.get<CustomerEvent>(`/customer-events/${id}`)
   }
 }
 

@@ -79,6 +79,7 @@ export interface QuoteItem {
   finalPrice?: number
   subtotal?: number
   remark?: string
+  locked?: boolean  // 是否锁定最终单价，锁定后不随参数变化而更新
 }
 
 export interface QuoteRequest {

@@ -143,6 +143,53 @@
                 </a-descriptions-item>
               </a-descriptions>
             </div>
+
+            <!-- 事件列表 -->
+            <div class="info-section content-card">
+              <div class="section-header">
+                <h3>事件记录</h3>
+                <a-button type="primary" @click="handleAddEvent">
+                  <PlusOutlined /> 添加事件
+                </a-button>
+              </div>
+              <a-spin :spinning="eventsLoading">
+                <a-timeline v-if="events.length > 0" class="events-timeline">
+                  <a-timeline-item
+                    v-for="event in events"
+                    :key="event.id"
+                    :color="eventStatusColors[event.eventStatus]"
+                  >
+                    <div class="event-item">
+                      <div class="event-header">
+                        <div class="event-time">
+                          <ClockCircleOutlined />
+                          {{ dayjs(event.eventTime).format('YYYY-MM-DD') }}
+                        </div>
+                        <div class="event-actions">
+                          <a-tag :color="eventStatusTagColors[event.eventStatus]">
+                            {{ eventStatusLabels[event.eventStatus] }}
+                          </a-tag>
+                          <a-button type="link" size="small" @click="handleEditEvent(event)">
+                            编辑
+                          </a-button>
+                          <a-popconfirm title="确定删除此事件吗？" @confirm="handleDeleteEvent(event.id)">
+                            <a-button type="link" size="small" danger>
+                              删除
+                            </a-button>
+                          </a-popconfirm>
+                        </div>
+                      </div>
+                      <div v-if="event.eventLocation" class="event-location">
+                        <EnvironmentOutlined />
+                        {{ event.eventLocation }}
+                      </div>
+                      <div class="event-content">{{ event.eventContent }}</div>
+                    </div>
+                  </a-timeline-item>
+                </a-timeline>
+                <a-empty v-else description="暂无事件记录" />
+              </a-spin>
+            </div>
           </a-col>
 
           <a-col :span="8">
@@ -184,11 +231,52 @@
       :customer="customer"
       @success="handleEditSuccess"
     />
+
+    <!-- 事件编辑弹窗 -->
+    <a-modal
+      v-model:open="showEventModal"
+      :title="eventFormTitle"
+      width="600px"
+      @ok="handleEventSubmit"
+      @cancel="handleEventCancel"
+    >
+      <a-form
+        ref="eventFormRef"
+        :model="eventForm"
+        :rules="eventFormRules"
+        layout="vertical"
+      >
+        <a-form-item label="事件时间" name="eventTime">
+          <a-date-picker
+            v-model:value="eventForm.eventTime"
+            format="YYYY-MM-DD"
+            placeholder="选择事件日期"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="事件地点" name="eventLocation">
+          <a-input v-model:value="eventForm.eventLocation" placeholder="请输入事件地点（可选）" />
+        </a-form-item>
+        <a-form-item label="事件内容" name="eventContent">
+          <a-textarea
+            v-model:value="eventForm.eventContent"
+            placeholder="请输入事件内容"
+            :rows="4"
+          />
+        </a-form-item>
+        <a-form-item label="事件进度状态" name="eventStatus">
+          <a-radio-group v-model:value="eventForm.eventStatus">
+            <a-radio value="pending_customer">等待客户回复</a-radio>
+            <a-radio value="pending_us">等待我们回复</a-radio>
+          </a-radio-group>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -198,11 +286,15 @@ import {
   MailOutlined,
   EditOutlined,
   DeleteOutlined,
-  LinkOutlined
+  LinkOutlined,
+  PlusOutlined,
+  ClockCircleOutlined,
+  EnvironmentOutlined
 } from '@ant-design/icons-vue'
 import { customerApi } from '@/api/customer'
-import type { Customer } from '@/api/customer'
+import type { Customer, CustomerEvent, CustomerEventRequest } from '@/api/customer'
 import CustomerFormModal from './components/CustomerFormModal.vue'
+import type { Dayjs } from 'dayjs'
 
 const route = useRoute()
 const router = useRouter()
@@ -210,6 +302,30 @@ const router = useRouter()
 const loading = ref(false)
 const customer = ref<Customer | null>(null)
 const showEditModal = ref(false)
+
+// 事件相关
+const events = ref<CustomerEvent[]>([])
+const eventsLoading = ref(false)
+const showEventModal = ref(false)
+const eventFormRef = ref()
+const currentEventId = ref<string | null>(null)
+const eventForm = ref<{
+  eventTime: Dayjs | null
+  eventLocation: string
+  eventContent: string
+  eventStatus: 'pending_customer' | 'pending_us'
+}>({
+  eventTime: null,
+  eventLocation: '',
+  eventContent: '',
+  eventStatus: 'pending_us'
+})
+
+const eventFormRules = {
+  eventTime: [{ required: true, message: '请选择事件时间' }],
+  eventContent: [{ required: true, message: '请输入事件内容' }],
+  eventStatus: [{ required: true, message: '请选择事件状态' }]
+}
 
 const sourceLabels: Record<string, string> = {
   manual: '手动录入',
@@ -254,6 +370,24 @@ const followUpStatusColors: Record<string, { color: string }> = {
   completed: { color: 'blue' }
 }
 
+// 事件状态
+const eventStatusLabels: Record<string, string> = {
+  pending_customer: '等待客户回复',
+  pending_us: '等待我们回复'
+}
+
+const eventStatusColors: Record<string, string> = {
+  pending_customer: 'green',
+  pending_us: 'orange'
+}
+
+const eventStatusTagColors: Record<string, string> = {
+  pending_customer: 'success',
+  pending_us: 'warning'
+}
+
+const eventFormTitle = computed(() => currentEventId.value ? '编辑事件' : '添加事件')
+
 // 格式化网站URL
 const formatWebsiteUrl = (url: string) => {
   if (!url) return '#'
@@ -279,11 +413,28 @@ const fetchCustomer = async () => {
     
     const res = await customerApi.getDetail(id)
     customer.value = res.data
+    
+    // 获取事件列表
+    fetchEvents()
   } catch {
     message.error('获取客户信息失败')
     router.push('/customer/list')
   } finally {
     loading.value = false
+  }
+}
+
+// 获取事件列表
+const fetchEvents = async () => {
+  if (!customer.value) return
+  eventsLoading.value = true
+  try {
+    const res = await customerApi.getEventsByCustomerId(customer.value.id)
+    events.value = res.data
+  } catch {
+    message.error('获取事件列表失败')
+  } finally {
+    eventsLoading.value = false
   }
 }
 
@@ -317,6 +468,79 @@ const handleDelete = async () => {
     router.push('/customer/list')
   } catch {
     message.error('删除失败')
+  }
+}
+
+// 添加事件
+const handleAddEvent = () => {
+  currentEventId.value = null
+  eventForm.value = {
+    eventTime: null,
+    eventLocation: '',
+    eventContent: '',
+    eventStatus: 'pending_us'
+  }
+  showEventModal.value = true
+}
+
+// 编辑事件
+const handleEditEvent = (event: CustomerEvent) => {
+  currentEventId.value = event.id
+  eventForm.value = {
+    eventTime: dayjs(event.eventTime),
+    eventLocation: event.eventLocation || '',
+    eventContent: event.eventContent,
+    eventStatus: event.eventStatus
+  }
+  showEventModal.value = true
+}
+
+// 提交事件
+const handleEventSubmit = async () => {
+  if (!customer.value) return
+  
+  try {
+    await eventFormRef.value?.validate()
+    
+    const data: CustomerEventRequest = {
+      customerId: customer.value.id,
+      eventTime: eventForm.value.eventTime!.format('YYYY-MM-DD'),
+      eventLocation: eventForm.value.eventLocation,
+      eventContent: eventForm.value.eventContent,
+      eventStatus: eventForm.value.eventStatus
+    }
+    
+    if (currentEventId.value) {
+      await customerApi.updateEvent(currentEventId.value, data)
+      message.success('事件更新成功')
+    } else {
+      await customerApi.createEvent(data)
+      message.success('事件添加成功')
+    }
+    
+    showEventModal.value = false
+    fetchEvents()
+    fetchCustomer() // 刷新客户信息（跟进状态会更新）
+  } catch (error) {
+    console.error('提交事件失败', error)
+  }
+}
+
+// 取消事件编辑
+const handleEventCancel = () => {
+  showEventModal.value = false
+  eventFormRef.value?.resetFields()
+}
+
+// 删除事件
+const handleDeleteEvent = async (eventId: string) => {
+  try {
+    await customerApi.deleteEvent(eventId)
+    message.success('事件删除成功')
+    fetchEvents()
+    fetchCustomer() // 刷新客户信息（跟进状态会更新）
+  } catch {
+    message.error('删除事件失败')
   }
 }
 
@@ -474,6 +698,61 @@ onMounted(() => {
         color: #fff;
         font-size: 12px;
         border-radius: 4px;
+      }
+    }
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    
+    h3 {
+      margin: 0;
+    }
+  }
+  
+  .events-timeline {
+    margin-top: 16px;
+    
+    .event-item {
+      .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        
+        .event-time {
+          font-size: 14px;
+          font-weight: 500;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        
+        .event-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+      }
+      
+      .event-location {
+        font-size: 13px;
+        color: #6b7280;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      .event-content {
+        font-size: 14px;
+        color: #1f2937;
+        line-height: 1.6;
+        white-space: pre-wrap;
       }
     }
   }

@@ -181,15 +181,28 @@
 
             <!-- 最终单价 -->
             <template v-else-if="column.key === 'finalPrice'">
-              <a-input-number
-                v-model:value="record.finalPrice"
-                :min="0"
-                :precision="2"
-                size="small"
-                style="width: 90px"
-                prefix="$"
-                @change="() => updateSubtotal(record)"
-              />
+              <a-space>
+                <a-input-number
+                  v-model:value="record.finalPrice"
+                  :min="0"
+                  :precision="2"
+                  size="small"
+                  style="width: 90px"
+                  prefix="$"
+                  @change="() => updateSubtotal(record)"
+                />
+                <a-tooltip :title="record.locked ? '点击解锁，自动更新价格' : '点击锁定，固定当前价格'">
+                  <a-button
+                    type="text"
+                    size="small"
+                    @click="() => toggleLock(record)"
+                    :style="{ color: record.locked ? '#faad14' : '#d9d9d9' }"
+                  >
+                    <LockOutlined v-if="record.locked" />
+                    <UnlockOutlined v-else />
+                  </a-button>
+                </a-tooltip>
+              </a-space>
             </template>
 
             <!-- 小计 -->
@@ -242,7 +255,9 @@ import {
   PictureOutlined,
   DeleteOutlined,
   DownloadOutlined,
-  SyncOutlined
+  SyncOutlined,
+  LockOutlined,
+  UnlockOutlined
 } from '@ant-design/icons-vue'
 import { productApi } from '@/api/product'
 import type { QuoteItem, QuoteRequest, Product } from '@/api/product'
@@ -275,7 +290,7 @@ const quoteColumns = [
   { title: '利润率', key: 'profitRate', width: 90 },
   { title: '含税/FOB', key: 'taxFob', width: 80 },
   { title: '推荐单价', key: 'recommendedPrice', width: 100 },
-  { title: '最终单价', key: 'finalPrice', width: 110 },
+  { title: '最终单价', key: 'finalPrice', width: 140 },
   { title: '小计', key: 'subtotal', width: 100 },
   { title: '操作', key: 'action', width: 60, fixed: 'right' as const }
 ]
@@ -317,7 +332,8 @@ const handleSearch = async () => {
             isFob: quoteSettings.isFob,
             recommendedPrice: 0,
             finalPrice: 0,
-            subtotal: 0
+            subtotal: 0,
+            locked: false
           }
           
           recalculateItem(newItem)
@@ -390,7 +406,9 @@ const recalculateItem = (item: QuoteItem) => {
   if (!item.priceRmb || item.priceRmb <= 0) {
     item.priceUsd = 0
     item.recommendedPrice = 0
-    item.finalPrice = 0
+    if (!item.locked) {
+      item.finalPrice = 0
+    }
     item.subtotal = 0
     return
   }
@@ -413,8 +431,8 @@ const recalculateItem = (item: QuoteItem) => {
 
   item.recommendedPrice = Number(recommendedPrice.toFixed(2))
   
-  // 如果没有手动设置最终价格，使用推荐价格
-  if (!item.finalPrice || item.finalPrice === 0) {
+  // 只有未锁定时才自动更新最终价格
+  if (!item.locked) {
     item.finalPrice = item.recommendedPrice
   }
 
@@ -424,6 +442,19 @@ const recalculateItem = (item: QuoteItem) => {
 // 更新小计
 const updateSubtotal = (item: QuoteItem) => {
   item.subtotal = Number(((item.finalPrice || 0) * (item.quantity || 1)).toFixed(2))
+}
+
+// 切换锁定状态
+const toggleLock = (item: QuoteItem) => {
+  item.locked = !item.locked
+  if (!item.locked) {
+    // 解锁时，立即更新为推荐价格
+    item.finalPrice = item.recommendedPrice
+    updateSubtotal(item)
+    message.success('已解锁，价格将随参数自动更新')
+  } else {
+    message.success('已锁定当前价格')
+  }
 }
 
 // 移除项
@@ -541,7 +572,8 @@ onMounted(() => {
           isFob: quoteSettings.isFob,
           recommendedPrice: 0,
           finalPrice: 0,
-          subtotal: 0
+          subtotal: 0,
+          locked: item.locked || false
         }
         recalculateItem(newItem)
         quoteItems.value.push(newItem)

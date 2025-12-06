@@ -155,9 +155,10 @@ public class ProductServiceImpl implements ProductService {
         BeanUtil.copyProperties(product, vo);
         vo.setId(String.valueOf(product.getId()));
         
-        // 生成完整图片URL
+        // 生成图片URL（使用相对路径，让前端通过代理访问）
         if (StrUtil.isNotBlank(product.getImagePath())) {
-            vo.setImageUrl(uploadBaseUrl + product.getImagePath());
+            // imagePath 已经是 /uploads/products/... 格式，直接使用
+            vo.setImageUrl(product.getImagePath());
         }
         
         return vo;

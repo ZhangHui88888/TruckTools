@@ -1,10 +1,6 @@
 package com.trucktools.product.service.impl;
 
 import cn.hutool.core.util.StrUtil;
-import com.alibaba.excel.EasyExcel;
-import com.alibaba.excel.write.metadata.style.WriteCellStyle;
-import com.alibaba.excel.write.metadata.style.WriteFont;
-import com.alibaba.excel.write.style.HorizontalCellStyleStrategy;
 import com.trucktools.common.exception.BusinessException;
 
 
@@ -17,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.util.CellRangeAddress;
-import org.apache.poi.util.IOUtils;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,7 +25,6 @@ import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -205,95 +199,25 @@ public class QuoteServiceImpl implements QuoteService {
             // 设置列宽
             sheet.setColumnWidth(0, 2000);  // NO.
             sheet.setColumnWidth(1, 4000);  // XK NO.
-            sheet.setColumnWidth(2, 5000);  // OE NO.
-            sheet.setColumnWidth(3, 4000);  // PICTURE
+            sheet.setColumnWidth(2, 6000);  // OE NO.
+            sheet.setColumnWidth(3, 11000); // PICTURE
             sheet.setColumnWidth(4, 3500);  // UNIT PRICE
 
-            // 创建标题样式 - 深蓝色背景，白色加粗大字
-            CellStyle titleStyle = workbook.createCellStyle();
-            Font titleFont = workbook.createFont();
-            titleFont.setBold(true);
-            titleFont.setFontHeightInPoints((short) 16);
-            titleFont.setColor(IndexedColors.WHITE.getIndex());
-            titleStyle.setFont(titleFont);
-            titleStyle.setAlignment(HorizontalAlignment.CENTER);
-            titleStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-            titleStyle.setFillForegroundColor(IndexedColors.DARK_BLUE.getIndex());
-            titleStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-            // 创建表头样式 - 蓝色背景，白色加粗字体
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            headerFont.setColor(IndexedColors.WHITE.getIndex());
-            headerFont.setFontHeightInPoints((short) 11);
-            headerStyle.setFont(headerFont);
-            headerStyle.setAlignment(HorizontalAlignment.CENTER);
-            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-            headerStyle.setBorderBottom(BorderStyle.MEDIUM);
-            headerStyle.setBorderTop(BorderStyle.MEDIUM);
-            headerStyle.setBorderLeft(BorderStyle.THIN);
-            headerStyle.setBorderRight(BorderStyle.THIN);
-            headerStyle.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
-            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-            // 创建数据样式 - 白色背景
-            CellStyle dataStyle = workbook.createCellStyle();
-            dataStyle.setAlignment(HorizontalAlignment.CENTER);
-            dataStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-            dataStyle.setBorderBottom(BorderStyle.THIN);
-            dataStyle.setBorderTop(BorderStyle.THIN);
-            dataStyle.setBorderLeft(BorderStyle.THIN);
-            dataStyle.setBorderRight(BorderStyle.THIN);
-            dataStyle.setFillForegroundColor(IndexedColors.WHITE.getIndex());
-            dataStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            
-            // 创建交替行样式 - 浅灰色背景（斑马纹）
-            CellStyle altRowStyle = workbook.createCellStyle();
-            altRowStyle.cloneStyleFrom(dataStyle);
-            altRowStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-            altRowStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-            // 创建价格样式 - 浅黄色背景突出显示
-            CellStyle priceStyle = workbook.createCellStyle();
-            priceStyle.cloneStyleFrom(dataStyle);
-            priceStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
-            priceStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            Font priceFont = workbook.createFont();
-            priceFont.setBold(true);
-            priceFont.setColor(IndexedColors.DARK_BLUE.getIndex());
-            priceStyle.setFont(priceFont);
-            
-            // 创建交替行的价格样式
-            CellStyle altPriceStyle = workbook.createCellStyle();
-            altPriceStyle.cloneStyleFrom(priceStyle);
-            altPriceStyle.setFillForegroundColor(IndexedColors.LIGHT_ORANGE.getIndex());
-            altPriceStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            
-            // 创建无价格样式 - 红色背景警告
-            CellStyle noPriceStyle = workbook.createCellStyle();
-            noPriceStyle.cloneStyleFrom(dataStyle);
-            noPriceStyle.setFillForegroundColor(IndexedColors.ROSE.getIndex());
-            noPriceStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            Font noPriceFont = workbook.createFont();
-            noPriceFont.setBold(true);
-            noPriceFont.setColor(IndexedColors.DARK_RED.getIndex());
-            noPriceStyle.setFont(noPriceFont);
-            
-            // 创建交替行的无价格样式
-            CellStyle altNoPriceStyle = workbook.createCellStyle();
-            altNoPriceStyle.cloneStyleFrom(noPriceStyle);
-            altNoPriceStyle.setFillForegroundColor(IndexedColors.CORAL.getIndex());
-            altNoPriceStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            // 创建样式
+            CellStyle titleStyle = createSimpleTitleStyle(workbook);
+            CellStyle headerStyle = createSimpleHeaderStyle(workbook);
+            CellStyle dataStyle = createSimpleDataStyle(workbook);
+            CellStyle priceStyle = createSimplePriceStyle(workbook, dataStyle);
+            CellStyle noPriceStyle = createSimpleNoPriceStyle(workbook, dataStyle);
 
             int rowNum = 0;
 
             // 标题行
             Row titleRow = sheet.createRow(rowNum++);
-            titleRow.setHeight((short) 600);
+            titleRow.setHeightInPoints(30);
             Cell titleCell = titleRow.createCell(0);
             String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.M.d"));
-            titleCell.setCellValue("PRICE QUOTATION --" + dateStr);
+            titleCell.setCellValue("PRICE QUOTATION -- " + dateStr);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 4));
 
@@ -302,6 +226,7 @@ public class QuoteServiceImpl implements QuoteService {
 
             // 表头行
             Row headerRow = sheet.createRow(rowNum++);
+            headerRow.setHeightInPoints(25);
             String[] headers = {"NO.", "XK NO.", "OE NO.", "PICTURE", "UNIT PRICE"};
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -314,95 +239,43 @@ public class QuoteServiceImpl implements QuoteService {
             int no = 1;
             for (QuoteItemDTO item : quoteResult.getItems()) {
                 Row dataRow = sheet.createRow(rowNum);
-                dataRow.setHeight((short) 1500); // 设置行高以适应图片
-                
-                // 使用斑马纹效果（奇偶行交替颜色）
-                boolean isEvenRow = (no % 2 == 0);
-                CellStyle rowStyle = isEvenRow ? altRowStyle : dataStyle;
-                CellStyle rowPriceStyle = isEvenRow ? altPriceStyle : priceStyle;
+                dataRow.setHeightInPoints(120); // 统一行高
 
                 // NO.
                 Cell noCell = dataRow.createCell(0);
                 noCell.setCellValue(no++);
-                noCell.setCellStyle(rowStyle);
+                noCell.setCellStyle(dataStyle);
 
                 // XK NO.
                 Cell xkCell = dataRow.createCell(1);
                 xkCell.setCellValue(item.getXkNo() != null ? item.getXkNo() : "");
-                xkCell.setCellStyle(rowStyle);
+                xkCell.setCellStyle(dataStyle);
 
-                // OE NO.
+                // OE NO. - 将斜杠替换为换行符，去除多余空格避免空行
                 Cell oeCell = dataRow.createCell(2);
-                oeCell.setCellValue(item.getOeNo() != null ? item.getOeNo() : "");
-                oeCell.setCellStyle(rowStyle);
+                String oeNo = item.getOeNo() != null ? item.getOeNo() : "";
+                // 先清理空格，再替换斜杠为换行符，避免产生空行
+                oeNo = oeNo.trim()
+                           .replaceAll("\\s*/\\s*", "/")  // 去除斜杠前后的空格
+                           .replace("/", "\n");            // 将 / 替换为换行符
+                oeCell.setCellValue(oeNo);
+                oeCell.setCellStyle(dataStyle);
 
                 // PICTURE
                 Cell picCell = dataRow.createCell(3);
-                picCell.setCellStyle(rowStyle);
-
-                // 尝试插入图片
-                log.info("========== 处理产品图片 ==========");
-                log.info("OE NO: {}", item.getOeNo());
-                log.info("imageUrl: {}", item.getImageUrl());
-                
-                if (StrUtil.isNotBlank(item.getImageUrl())) {
-                    try {
-                        // 从URL路径获取本地文件路径
-                        String imagePath = getLocalImagePath(item.getImageUrl());
-                        log.info("本地图片路径: {}", imagePath);
-                        
-                        if (imagePath != null) {
-                            byte[] imageBytes = readImageForExcel(imagePath);
-                            log.info("图片数据大小: {} bytes", imageBytes != null ? imageBytes.length : 0);
-                            
-                            if (imageBytes != null && imageBytes.length > 0) {
-                                int pictureType = getPictureType(imagePath);
-                                int pictureIdx = workbook.addPicture(imageBytes, pictureType);
-                                CreationHelper helper = workbook.getCreationHelper();
-                                ClientAnchor anchor = helper.createClientAnchor();
-                                
-                                // 设置图片位置（PICTURE列，即第4列，索引3）
-                                anchor.setCol1(3);
-                                anchor.setRow1(rowNum);
-                                anchor.setCol2(4);
-                                anchor.setRow2(rowNum + 1);
-                                
-                                // 设置边距（单位：EMU，1像素 ≈ 9525 EMU）
-                                // 每边留5像素的边距
-                                int margin = 5 * 9525;
-                                anchor.setDx1(margin);      // 左边距
-                                anchor.setDy1(margin);      // 上边距
-                                anchor.setDx2(-margin);     // 右边距（负值表示从右边缘向内）
-                                anchor.setDy2(-margin);     // 下边距（负值表示从下边缘向内）
-
-                                anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
-                                Picture picture = drawing.createPicture(anchor, pictureIdx);
-                                // 不使用resize，让图片保持原比例自适应
-                                log.info("✅ 图片插入成功: {}", item.getOeNo());
-                            } else {
-                                log.warn("❌ 图片数据为空: OE NO={}, path={}", item.getOeNo(), imagePath);
-                            }
-                        } else {
-                            log.warn("❌ 无法获取本地图片路径: OE NO={}, imageUrl={}", item.getOeNo(), item.getImageUrl());
-                        }
-                    } catch (Exception e) {
-                        log.error("❌ 插入图片失败: OE NO={}, imageUrl={}", item.getOeNo(), item.getImageUrl(), e);
-                    }
-                } else {
-                    log.warn("❌ 图片URL为空: OE NO={}", item.getOeNo());
-                }
-                log.info("====================================");
+                picCell.setCellStyle(dataStyle);
+                insertUniformPicture(workbook, drawing, item.getImageUrl(), 3, rowNum, item.getOeNo());
 
                 // UNIT PRICE
                 Cell priceCell = dataRow.createCell(4);
                 if (item.getFinalPrice() != null && item.getFinalPrice().compareTo(BigDecimal.ZERO) > 0) {
                     // 有有效价格，正常显示
                     priceCell.setCellValue("$" + item.getFinalPrice().setScale(2, RoundingMode.HALF_UP));
-                    priceCell.setCellStyle(rowPriceStyle);
+                    priceCell.setCellStyle(priceStyle);
                 } else {
                     // 无价格或价格为0，特殊标注
-                    priceCell.setCellValue("待询价");
-                    priceCell.setCellStyle(isEvenRow ? altNoPriceStyle : noPriceStyle);
+                    priceCell.setCellValue("TBD");
+                    priceCell.setCellStyle(noPriceStyle);
                 }
 
                 rowNum++;
@@ -841,7 +714,7 @@ public class QuoteServiceImpl implements QuoteService {
             sheet.setColumnWidth(0, 2000);  // NO.
             sheet.setColumnWidth(1, 4000);  // XK NO.
             sheet.setColumnWidth(2, 5000);  // OE NO.
-            sheet.setColumnWidth(3, 4000);  // 图片
+            sheet.setColumnWidth(3, 11000); // 图片
             sheet.setColumnWidth(4, 3500);  // 客户报价
             sheet.setColumnWidth(5, 3500);  // 我方成本价(RMB)
             sheet.setColumnWidth(6, 3500);  // 我方报价(USD)
@@ -849,56 +722,29 @@ public class QuoteServiceImpl implements QuoteService {
             sheet.setColumnWidth(8, 2500);  // 差异%
             sheet.setColumnWidth(9, 3000);  // 备注
 
-            // 创建标题样式
-            CellStyle titleStyle = workbook.createCellStyle();
-            Font titleFont = workbook.createFont();
-            titleFont.setBold(true);
-            titleFont.setFontHeightInPoints((short) 14);
-            titleStyle.setFont(titleFont);
-            titleStyle.setAlignment(HorizontalAlignment.CENTER);
-
-            // 创建表头样式
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font headerFont = workbook.createFont();
-            headerFont.setBold(true);
-            headerStyle.setFont(headerFont);
-            headerStyle.setAlignment(HorizontalAlignment.CENTER);
-            headerStyle.setBorderBottom(BorderStyle.THIN);
-            headerStyle.setBorderTop(BorderStyle.THIN);
-            headerStyle.setBorderLeft(BorderStyle.THIN);
-            headerStyle.setBorderRight(BorderStyle.THIN);
-            headerStyle.setFillForegroundColor(IndexedColors.LIGHT_TURQUOISE.getIndex());
-            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-
-            // 创建数据样式
-            CellStyle dataStyle = workbook.createCellStyle();
-            dataStyle.setAlignment(HorizontalAlignment.CENTER);
-            dataStyle.setVerticalAlignment(VerticalAlignment.CENTER);
-            dataStyle.setBorderBottom(BorderStyle.THIN);
-            dataStyle.setBorderTop(BorderStyle.THIN);
-            dataStyle.setBorderLeft(BorderStyle.THIN);
-            dataStyle.setBorderRight(BorderStyle.THIN);
-
-            // 创建价格样式
-            CellStyle priceStyle = workbook.createCellStyle();
-            priceStyle.cloneStyleFrom(dataStyle);
-            priceStyle.setAlignment(HorizontalAlignment.RIGHT);
-
-            // 创建正差异样式(绿色)
+            // 创建样式
+            CellStyle titleStyle = createSimpleTitleStyle(workbook);
+            CellStyle headerStyle = createSimpleHeaderStyle(workbook);
+            CellStyle dataStyle = createSimpleDataStyle(workbook);
+            CellStyle priceStyle = createSimplePriceStyle(workbook, dataStyle);
+            
+            // 创建差异样式
             CellStyle positiveStyle = workbook.createCellStyle();
             positiveStyle.cloneStyleFrom(priceStyle);
             Font positiveFont = workbook.createFont();
             positiveFont.setColor(IndexedColors.GREEN.getIndex());
+            positiveFont.setFontHeightInPoints((short) 10);
+            positiveFont.setFontName("Arial");
             positiveStyle.setFont(positiveFont);
 
-            // 创建负差异样式(红色)
             CellStyle negativeStyle = workbook.createCellStyle();
             negativeStyle.cloneStyleFrom(priceStyle);
             Font negativeFont = workbook.createFont();
             negativeFont.setColor(IndexedColors.RED.getIndex());
+            negativeFont.setFontHeightInPoints((short) 10);
+            negativeFont.setFontName("Arial");
             negativeStyle.setFont(negativeFont);
 
-            // 创建未匹配行样式(灰色背景)
             CellStyle unmatchedStyle = workbook.createCellStyle();
             unmatchedStyle.cloneStyleFrom(dataStyle);
             unmatchedStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
@@ -908,10 +754,10 @@ public class QuoteServiceImpl implements QuoteService {
 
             // 标题行
             Row titleRow = sheet.createRow(rowNum++);
-            titleRow.setHeight((short) 600);
+            titleRow.setHeightInPoints(30);
             Cell titleCell = titleRow.createCell(0);
             String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.M.d"));
-            titleCell.setCellValue("PRICE QUOTATION COMPARISON --" + dateStr);
+            titleCell.setCellValue("PRICE QUOTATION COMPARISON -- " + dateStr);
             titleCell.setCellStyle(titleStyle);
             sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 9));
 
@@ -920,12 +766,14 @@ public class QuoteServiceImpl implements QuoteService {
 
             // 汇总信息行
             Row summaryRow = sheet.createRow(rowNum++);
+            summaryRow.setHeightInPoints(20);
             Cell summaryCell = summaryRow.createCell(0);
-            String summary = String.format("汇率: %.2f | 价格模式: %s | 总行数: %d | 匹配: %d | 未匹配: %d",
+            String summary = String.format("Exchange Rate: %.2f | Price Mode: %s | Total: %d | Matched: %d | Unmatched: %d",
                     result.getExchangeRate(), 
-                    "min".equals(result.getPriceMode()) ? "最低价" : ("max".equals(result.getPriceMode()) ? "最高价" : "平均价"),
+                    "min".equals(result.getPriceMode()) ? "MIN" : ("max".equals(result.getPriceMode()) ? "MAX" : "AVG"),
                     result.getTotalRows(), result.getMatchedCount(), result.getUnmatchedCount());
             summaryCell.setCellValue(summary);
+            summaryCell.setCellStyle(dataStyle);
             sheet.addMergedRegion(new CellRangeAddress(rowNum - 1, rowNum - 1, 0, 9));
 
             // 空行
@@ -933,7 +781,8 @@ public class QuoteServiceImpl implements QuoteService {
 
             // 表头行
             Row headerRow = sheet.createRow(rowNum++);
-            String[] headers = {"NO.", "XK NO.", "OE NO.", "图片", "客户报价($)", "成本价(¥)", "我方报价($)", "差异($)", "差异%", "备注"};
+            headerRow.setHeightInPoints(25);
+            String[] headers = {"NO.", "XK NO.", "OE NO.", "PICTURE", "Customer($)", "Cost(¥)", "Our Price($)", "Diff($)", "Diff%", "Remark"};
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
@@ -945,7 +794,7 @@ public class QuoteServiceImpl implements QuoteService {
             int no = 1;
             for (QuoteImportItemDTO item : result.getItems()) {
                 Row dataRow = sheet.createRow(rowNum);
-                dataRow.setHeight((short) 1500);
+                dataRow.setHeightInPoints(120); // 统一行高
 
                 boolean isMatched = Boolean.TRUE.equals(item.getMatched());
                 CellStyle rowStyle = isMatched ? dataStyle : unmatchedStyle;
@@ -961,47 +810,20 @@ public class QuoteServiceImpl implements QuoteService {
                 xkCell.setCellValue(item.getXkNo() != null ? item.getXkNo() : "-");
                 xkCell.setCellStyle(rowStyle);
 
-                // OE NO.
+                // OE NO. - 去除多余空格避免空行
                 Cell oeCell = dataRow.createCell(2);
-                oeCell.setCellValue(item.getOeNo() != null ? item.getOeNo() : "");
+                String oeNo = item.getOeNo() != null ? item.getOeNo() : "";
+                oeNo = oeNo.trim()
+                           .replaceAll("\\s*/\\s*", "/")
+                           .replace("/", "\n");
+                oeCell.setCellValue(oeNo);
                 oeCell.setCellStyle(rowStyle);
 
                 // 图片
                 Cell picCell = dataRow.createCell(3);
                 picCell.setCellStyle(rowStyle);
-                if (StrUtil.isNotBlank(item.getImageUrl()) && isMatched) {
-                    try {
-                        String imagePath = getLocalImagePath(item.getImageUrl());
-                        if (imagePath != null) {
-                            byte[] imageBytes = readImageForExcel(imagePath);
-                            if (imageBytes != null && imageBytes.length > 0) {
-                                int pictureType = getPictureType(imagePath);
-                                int pictureIdx = workbook.addPicture(imageBytes, pictureType);
-                                CreationHelper helper = workbook.getCreationHelper();
-                                ClientAnchor anchor = helper.createClientAnchor();
-                                
-                                // 设置图片位置
-                                anchor.setCol1(3);
-                                anchor.setRow1(rowNum);
-                                anchor.setCol2(4);
-                                anchor.setRow2(rowNum + 1);
-                                
-                                // 设置边距（每边5像素）保持原比例
-                                int margin = 5 * 9525;
-                                anchor.setDx1(margin);
-                                anchor.setDy1(margin);
-                                anchor.setDx2(-margin);
-                                anchor.setDy2(-margin);
-                                
-                                anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
-                                Picture picture = drawing.createPicture(anchor, pictureIdx);
-                                // 保持原比例，不使用resize
-                            }
-                        }
-                    } catch (Exception e) {
-                        log.warn("插入图片失败: {} - {}", item.getOeNo(), e.getMessage());
-                    }
-
+                if (isMatched) {
+                    insertUniformPicture(workbook, drawing, item.getImageUrl(), 3, rowNum, item.getOeNo());
                 }
 
                 // 客户报价
@@ -1182,6 +1004,139 @@ public class QuoteServiceImpl implements QuoteService {
         } catch (Exception e) {
             log.warn("读取图片失败: {} - {}", imagePath, e.getMessage());
             return null;
+        }
+    }
+
+    /**
+     * 创建简约标题样式
+     */
+    private CellStyle createSimpleTitleStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 14);
+        font.setFontName("Arial");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        return style;
+    }
+
+    /**
+     * 创建简约表头样式 - 浅绿色背景
+     */
+    private CellStyle createSimpleHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Arial");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+
+    /**
+     * 创建简约数据样式
+     */
+    private CellStyle createSimpleDataStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Arial");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setWrapText(true);
+        return style;
+    }
+
+    /**
+     * 创建简约价格样式
+     */
+    private CellStyle createSimplePriceStyle(Workbook workbook, CellStyle baseStyle) {
+        CellStyle style = workbook.createCellStyle();
+        style.cloneStyleFrom(baseStyle);
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Arial");
+        style.setFont(font);
+        return style;
+    }
+
+    /**
+     * 创建简约无价格样式
+     */
+    private CellStyle createSimpleNoPriceStyle(Workbook workbook, CellStyle baseStyle) {
+        CellStyle style = workbook.createCellStyle();
+        style.cloneStyleFrom(baseStyle);
+        Font font = workbook.createFont();
+        font.setItalic(true);
+        font.setColor(IndexedColors.GREY_50_PERCENT.getIndex());
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("Arial");
+        style.setFont(font);
+        return style;
+    }
+
+    /**
+     * 插入统一大小的图片
+     */
+    private void insertUniformPicture(Workbook workbook, Drawing<?> drawing, String imageUrl, 
+                                      int col, int row, String oeNo) {
+        if (StrUtil.isBlank(imageUrl)) {
+            return;
+        }
+
+        try {
+            String imagePath = getLocalImagePath(imageUrl);
+            if (imagePath == null) {
+                log.warn("无法获取本地图片路径: OE NO={}, imageUrl={}", oeNo, imageUrl);
+                return;
+            }
+
+            byte[] imageBytes = readImageForExcel(imagePath);
+            if (imageBytes == null || imageBytes.length == 0) {
+                log.warn("图片数据为空: OE NO={}, path={}", oeNo, imagePath);
+                return;
+            }
+
+            int pictureType = getPictureType(imagePath);
+            int pictureIdx = workbook.addPicture(imageBytes, pictureType);
+            CreationHelper helper = workbook.getCreationHelper();
+            ClientAnchor anchor = helper.createClientAnchor();
+
+            // 统一图片大小 - 设置固定的起始和结束位置
+            anchor.setCol1(col);
+            anchor.setRow1(row);
+            anchor.setCol2(col + 1);
+            anchor.setRow2(row + 1);
+
+            // 设置内边距
+            anchor.setDx1(15 * 9525);
+            anchor.setDy1(15 * 9525);
+            anchor.setDx2(-15 * 9525);
+            anchor.setDy2(-15 * 9525);
+
+            // MOVE_AND_RESIZE：图片随单元格调整
+            anchor.setAnchorType(ClientAnchor.AnchorType.MOVE_AND_RESIZE);
+            drawing.createPicture(anchor, pictureIdx);
+
+            log.info("✅ 图片插入成功: OE NO={}", oeNo);
+        } catch (Exception e) {
+            log.error("插入图片失败: OE NO={}, imageUrl={}", oeNo, imageUrl, e);
         }
     }
 }
