@@ -199,8 +199,8 @@ public class QuoteServiceImpl implements QuoteService {
             // 设置列宽
             sheet.setColumnWidth(0, 2000);  // NO.
             sheet.setColumnWidth(1, 4000);  // XK NO.
-            sheet.setColumnWidth(2, 6000);  // OE NO.
-            sheet.setColumnWidth(3, 11000); // PICTURE
+            sheet.setColumnWidth(2, 4000);  // OE NO.
+            sheet.setColumnWidth(3, 3667);  // PICTURE
             sheet.setColumnWidth(4, 3500);  // UNIT PRICE
 
             // 创建样式
@@ -212,9 +212,9 @@ public class QuoteServiceImpl implements QuoteService {
 
             int rowNum = 0;
 
-            // 标题行
+            // 标题行 (行高缩小一倍)
             Row titleRow = sheet.createRow(rowNum++);
-            titleRow.setHeightInPoints(30);
+            titleRow.setHeightInPoints(15);
             Cell titleCell = titleRow.createCell(0);
             String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy.M.d"));
             titleCell.setCellValue("PRICE QUOTATION -- " + dateStr);
@@ -224,9 +224,9 @@ public class QuoteServiceImpl implements QuoteService {
             // 空行
             rowNum++;
 
-            // 表头行
+            // 表头行 (行高缩小一倍)
             Row headerRow = sheet.createRow(rowNum++);
-            headerRow.setHeightInPoints(25);
+            headerRow.setHeightInPoints(12.5f);
             String[] headers = {"NO.", "XK NO.", "OE NO.", "PICTURE", "UNIT PRICE"};
             for (int i = 0; i < headers.length; i++) {
                 Cell cell = headerRow.createCell(i);
@@ -239,7 +239,7 @@ public class QuoteServiceImpl implements QuoteService {
             int no = 1;
             for (QuoteItemDTO item : quoteResult.getItems()) {
                 Row dataRow = sheet.createRow(rowNum);
-                dataRow.setHeightInPoints(120); // 统一行高
+                dataRow.setHeightInPoints(60); // 统一行高 (缩小一倍)
 
                 // NO.
                 Cell noCell = dataRow.createCell(0);
@@ -1023,7 +1023,7 @@ public class QuoteServiceImpl implements QuoteService {
     }
 
     /**
-     * 创建简约表头样式 - 浅绿色背景
+     * 创建简约表头样式 - 青色背景
      */
     private CellStyle createSimpleHeaderStyle(Workbook workbook) {
         CellStyle style = workbook.createCellStyle();
@@ -1038,7 +1038,7 @@ public class QuoteServiceImpl implements QuoteService {
         style.setBorderTop(BorderStyle.THIN);
         style.setBorderLeft(BorderStyle.THIN);
         style.setBorderRight(BorderStyle.THIN);
-        style.setFillForegroundColor(IndexedColors.LIGHT_GREEN.getIndex());
+        style.setFillForegroundColor(IndexedColors.YELLOW.getIndex());
         style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
         return style;
     }
