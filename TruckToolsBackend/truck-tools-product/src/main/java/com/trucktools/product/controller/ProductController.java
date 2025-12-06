@@ -96,6 +96,14 @@ public class ProductController {
         return Result.success(products);
     }
 
+    @Operation(summary = "上传产品图片")
+    @PostMapping("/{id}/image")
+    public Result<Map<String, String>> uploadImage(@PathVariable Long id, @RequestParam("file") MultipartFile file) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        String imageUrl = productService.uploadImage(userId, id, file);
+        return Result.success(Map.of("imageUrl", imageUrl));
+    }
+
     // ===================== Excel导入 =====================
 
     @Operation(summary = "下载产品导入模板")

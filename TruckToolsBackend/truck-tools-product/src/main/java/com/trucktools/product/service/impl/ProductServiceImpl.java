@@ -15,10 +15,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -33,6 +41,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Value("${app.upload.base-url:http://localhost:8080}")
     private String uploadBaseUrl;
+
+    @Value("${app.upload.path:./uploads}")
+    private String uploadPath;
 
     @Override
     public PageResult<ProductVO> getPage(ProductQueryParam param) {
@@ -162,6 +173,71 @@ public class ProductServiceImpl implements ProductService {
         }
         
         return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String uploadImage(Long userId, Long productId, MultipartFile file) {
+        // 验证产品归属
+        Product product = productMapper.selectById(productId);
+        if (product == null || !product.getUserId().equals(userId)) {
+            throw new BusinessException("产品不存在");
+        }
+
+        // 验证文件
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要上传的图片");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            throw new BusinessException("文件名不能为空");
+        }
+
+        // 验证文件类型
+        String extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        if (!".jpg".equals(extension) && !".jpeg".equals(extension) && 
+            !".png".equals(extension) && !".gif".equals(extension) && 
+            !".webp".equals(extension) && !".tiff".equals(extension)) {
+            throw new BusinessException("只支持 jpg/jpeg/png/gif/webp/tiff 格式的图片");
+        }
+
+        try {
+            // 生成文件路径: uploads/products/{date}/{uuid}.{ext}
+            String dateDir = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+            String newFileName = UUID.randomUUID().toString().replace("-", "") + extension;
+            String relativePath = "/uploads/products/" + dateDir + "/" + newFileName;
+            
+            // 创建目录
+            Path targetDir = Paths.get(uploadPath, "products", dateDir);
+            Files.createDirectories(targetDir);
+            
+            // 保存文件
+            Path targetPath = targetDir.resolve(newFileName);
+            file.transferTo(targetPath.toFile());
+            
+            // 删除旧图片（如果存在）
+            if (StrUtil.isNotBlank(product.getImagePath())) {
+                try {
+                    String oldPath = product.getImagePath().replace("/uploads/", "");
+                    Path oldFile = Paths.get(uploadPath, oldPath);
+                    Files.deleteIfExists(oldFile);
+                } catch (Exception e) {
+                    log.warn("删除旧图片失败: {}", product.getImagePath(), e);
+                }
+            }
+            
+            // 更新数据库
+            product.setImagePath(relativePath);
+            productMapper.updateById(product);
+            
+            log.info("产品图片上传成功: productId={}, path={}", productId, relativePath);
+            return relativePath;
+            
+        } catch (IOException e) {
+            log.error("图片上传失败", e);
+            throw new BusinessException("图片上传失败: " + e.getMessage());
+        }
     }
 }
 

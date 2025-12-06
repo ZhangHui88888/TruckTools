@@ -190,8 +190,33 @@
       title="编辑产品"
       @ok="handleEditSubmit"
       :confirmLoading="editLoading"
+      width="600px"
     >
       <a-form :model="editForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
+        <a-form-item label="产品图片">
+          <div class="image-upload-area">
+            <div class="current-image" v-if="editForm.imageUrl">
+              <img :src="editForm.imageUrl" alt="产品图片" />
+              <div class="image-overlay">
+                <a-button type="primary" size="small" @click="triggerImageUpload">
+                  <UploadOutlined /> 更换图片
+                </a-button>
+              </div>
+            </div>
+            <div class="upload-placeholder" v-else @click="triggerImageUpload">
+              <PlusOutlined style="font-size: 24px; color: #999" />
+              <div style="margin-top: 8px; color: #999">点击上传图片</div>
+            </div>
+            <input
+              ref="imageInputRef"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="handleImageSelect"
+            />
+          </div>
+          <div class="upload-tip">支持 jpg/png/gif/webp 格式，上传后将覆盖原图片</div>
+        </a-form-item>
         <a-form-item label="品牌缩写">
           <a-input v-model:value="editForm.brandCode" />
         </a-form-item>
@@ -234,7 +259,8 @@ import {
   EditOutlined,
   DeleteOutlined,
   SyncOutlined,
-  FileExcelOutlined
+  FileExcelOutlined,
+  PlusOutlined
 } from '@ant-design/icons-vue'
 import { productApi } from '@/api/product'
 import type { Product, Brand, ProductListParams } from '@/api/product'
@@ -306,6 +332,10 @@ const editModalVisible = ref(false)
 const editLoading = ref(false)
 const editForm = reactive<Partial<Product>>({})
 const currentEditId = ref<string>('')
+
+// 图片上传
+const imageInputRef = ref<HTMLInputElement | null>(null)
+const imageUploading = ref(false)
 
 // 筛选条件
 const filterState = reactive<ProductListParams>({
@@ -504,9 +534,48 @@ const handleEdit = (record: Product) => {
     priceMin: record.priceMin,
     priceMax: record.priceMax,
     priceAvg: record.priceAvg,
-    remark: record.remark
+    remark: record.remark,
+    imageUrl: record.imageUrl
   })
   editModalVisible.value = true
+}
+
+// 触发图片上传
+const triggerImageUpload = () => {
+  imageInputRef.value?.click()
+}
+
+// 处理图片选择
+const handleImageSelect = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  // 验证文件大小（最大 10MB）
+  if (file.size > 10 * 1024 * 1024) {
+    message.error('图片大小不能超过 10MB')
+    return
+  }
+
+  imageUploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const res = await productApi.uploadImage(currentEditId.value, formData)
+    if (res && res.data) {
+      editForm.imageUrl = res.data.imageUrl
+      message.success('图片上传成功')
+      // 刷新列表以更新图片
+      fetchProducts()
+    }
+  } catch {
+    message.error('图片上传失败')
+  } finally {
+    imageUploading.value = false
+    // 清空 input 以便可以再次选择同一文件
+    input.value = ''
+  }
 }
 
 // 提交编辑
@@ -757,6 +826,68 @@ onMounted(() => {
     max-height: 80vh;
     object-fit: contain;
   }
+}
+
+// 图片上传区域样式
+.image-upload-area {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+  transition: border-color 0.3s;
+
+  &:hover {
+    border-color: #1677ff;
+  }
+
+  .current-image {
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .image-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    &:hover .image-overlay {
+      opacity: 1;
+    }
+  }
+
+  .upload-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #fafafa;
+  }
+}
+
+.upload-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
 }
 </style>
 

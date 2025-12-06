@@ -2,6 +2,7 @@ package com.trucktools.product.service;
 
 import com.trucktools.common.core.domain.PageResult;
 import com.trucktools.product.dto.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -49,5 +50,10 @@ public interface ProductService {
      * 按OE号搜索产品(支持多个OE号)
      */
     List<ProductVO> searchByOeNo(Long userId, String oeNos);
+
+    /**
+     * 上传产品图片
+     */
+    String uploadImage(Long userId, Long productId, MultipartFile file);
 }
 

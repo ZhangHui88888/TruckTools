@@ -173,6 +173,11 @@ export const productApi = {
     return http.put(`/products/${id}`, data)
   },
 
+  // 上传产品图片
+  uploadImage(id: string, formData: FormData) {
+    return http.upload<{ imageUrl: string }>(`/products/${id}/image`, formData)
+  },
+
   // 删除产品
   delete(id: string) {
     return http.delete(`/products/${id}`)
