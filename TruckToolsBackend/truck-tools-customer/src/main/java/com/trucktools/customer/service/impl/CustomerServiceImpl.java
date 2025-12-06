@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import cn.hutool.core.util.StrUtil;
+import com.trucktools.common.utils.IdGenerator;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -230,9 +231,38 @@ public class CustomerServiceImpl implements CustomerService {
     public void updateEmailInfo(Long customerId) {
         Customer customer = customerMapper.selectById(customerId);
         if (customer != null) {
-            customer.setLastEmailTime(LocalDateTime.now());
+            LocalDateTime now = LocalDateTime.now();
+            
+            // 更新客户邮件统计
+            customer.setLastEmailTime(now);
             customer.setEmailCount(customer.getEmailCount() + 1);
+            
+            // 更新跟进状态为"等待客户反馈"
+            customer.setFollowUpStatus("pending_customer");
+            customer.setLastEventTime(now);
+            
+            // 如果之前停止跟进，发送邮件后恢复跟进
+            if (customer.getStopFollowUp() != null && customer.getStopFollowUp() == 1) {
+                customer.setStopFollowUp(0);
+                customer.setStopFollowUpTime(null);
+                customer.setStopFollowUpReason(null);
+            }
+            
             customerMapper.updateById(customer);
+            
+            // 创建"已发送邮件"事件
+            CustomerEvent event = new CustomerEvent();
+            event.setId(IdGenerator.nextId());
+            event.setUserId(customer.getUserId());
+            event.setCustomerId(customerId);
+            event.setEventTime(now);
+            event.setEventContent("已发送邮件给客户");
+            event.setEventStatus("pending_customer"); // 等待客户反馈
+            event.setIsSystemGenerated(1); // 系统自动生成
+            
+            customerEventMapper.insert(event);
+            
+            log.info("客户{}邮件发送事件已记录", customerId);
         }
     }
 

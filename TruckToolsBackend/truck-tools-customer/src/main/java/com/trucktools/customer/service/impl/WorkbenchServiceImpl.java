@@ -128,39 +128,34 @@ public class WorkbenchServiceImpl implements WorkbenchService {
 
     @Override
     public PageResult<WorkbenchEventVO> getEventList(Long userId, WorkbenchEventQueryRequest request) {
-        // 构建查询条件
-        LambdaQueryWrapper<CustomerEvent> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CustomerEvent::getUserId, userId)
-                .eq(CustomerEvent::getDeleted, 0);
+        // 获取每个客户的最新事件
+        List<CustomerEvent> allLatestEvents = customerEventMapper.selectLatestEventsPerCustomer(userId);
+        
+        // 转换为VO并应用筛选
+        List<WorkbenchEventVO> voList = allLatestEvents.stream()
+                .map(this::convertToWorkbenchEventVO)
+                .collect(Collectors.toList());
 
         // 事件状态筛选
         if (StringUtils.hasText(request.getEventStatus()) && !"all".equals(request.getEventStatus())) {
-            wrapper.eq(CustomerEvent::getEventStatus, request.getEventStatus());
+            voList = voList.stream()
+                    .filter(vo -> request.getEventStatus().equals(vo.getEventStatus()))
+                    .collect(Collectors.toList());
         }
 
         // 时间范围筛选
         if (request.getStartTime() != null) {
-            wrapper.ge(CustomerEvent::getEventTime, request.getStartTime());
+            voList = voList.stream()
+                    .filter(vo -> vo.getEventTime() != null && !vo.getEventTime().isBefore(request.getStartTime()))
+                    .collect(Collectors.toList());
         }
         if (request.getEndTime() != null) {
-            wrapper.le(CustomerEvent::getEventTime, request.getEndTime());
+            voList = voList.stream()
+                    .filter(vo -> vo.getEventTime() != null && !vo.getEventTime().isAfter(request.getEndTime()))
+                    .collect(Collectors.toList());
         }
 
-        // 排序：先按状态（pending_us在前），再按时间倒序
-        wrapper.orderByAsc(CustomerEvent::getEventStatus)
-                .orderByDesc(CustomerEvent::getEventTime)
-                .orderByDesc(CustomerEvent::getCreatedAt);
-
-        // 分页查询
-        Page<CustomerEvent> page = new Page<>(request.getPage(), request.getPageSize());
-        Page<CustomerEvent> eventPage = customerEventMapper.selectPage(page, wrapper);
-
-        // 转换为VO
-        List<WorkbenchEventVO> voList = eventPage.getRecords().stream()
-                .map(this::convertToWorkbenchEventVO)
-                .collect(Collectors.toList());
-
-        // 客户关键词筛选（需要关联客户表）
+        // 客户关键词筛选
         if (StringUtils.hasText(request.getCustomerKeyword())) {
             voList = voList.stream()
                     .filter(vo -> vo.getCustomerName() != null && 
@@ -183,7 +178,18 @@ public class WorkbenchServiceImpl implements WorkbenchService {
                     .collect(Collectors.toList());
         }
 
-        return PageResult.of(voList, eventPage.getTotal(), request.getPage(), request.getPageSize());
+        // 手动分页
+        long total = voList.size();
+        int start = (request.getPage() - 1) * request.getPageSize();
+        int end = Math.min(start + request.getPageSize(), voList.size());
+        
+        if (start >= voList.size()) {
+            voList = new ArrayList<>();
+        } else {
+            voList = voList.subList(start, end);
+        }
+
+        return PageResult.of(voList, total, request.getPage(), request.getPageSize());
     }
 
     @Override
