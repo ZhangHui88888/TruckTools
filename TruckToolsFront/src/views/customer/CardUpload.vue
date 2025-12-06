@@ -42,9 +42,10 @@
             <img :src="file.preview" alt="名片预览" class="file-preview" />
             <div class="file-overlay">
               <a-radio-group v-model:value="file.priority" size="small" button-style="solid">
-                <a-radio-button :value="1">高</a-radio-button>
-                <a-radio-button :value="2">中</a-radio-button>
-                <a-radio-button :value="3">低</a-radio-button>
+                <a-radio-button :value="0">T0</a-radio-button>
+                <a-radio-button :value="1">T1</a-radio-button>
+                <a-radio-button :value="2">T2</a-radio-button>
+                <a-radio-button :value="3">T3</a-radio-button>
               </a-radio-group>
             </div>
             <a-button
@@ -234,7 +235,7 @@ const beforeUpload = async (file: File) => {
     uid: `${Date.now()}-${Math.random()}`,
     file,
     preview,
-    priority: 2
+    priority: 1
   })
   
   return false // 阻止自动上传

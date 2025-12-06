@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -97,6 +98,17 @@ public class CustomerController {
                 "downloadUrl", downloadUrl,
                 "expiresAt", java.time.LocalDateTime.now().plusDays(1).toString()
         ));
+    }
+
+    @Operation(summary = "上传名片图片")
+    @PostMapping("/{id}/business-card/{side}")
+    public Result<Map<String, String>> uploadBusinessCard(
+            @PathVariable Long id,
+            @PathVariable String side,
+            @RequestParam("file") MultipartFile file) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        String imageUrl = customerService.uploadBusinessCard(userId, id, side, file);
+        return Result.success(Map.of("imageUrl", imageUrl));
     }
 }
 

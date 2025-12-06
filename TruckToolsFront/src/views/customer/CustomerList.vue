@@ -36,9 +36,10 @@
             style="width: 120px"
             allow-clear
           >
-            <a-select-option :value="1">高优先级</a-select-option>
-            <a-select-option :value="2">中优先级</a-select-option>
-            <a-select-option :value="3">低优先级</a-select-option>
+            <a-select-option :value="0">T0</a-select-option>
+            <a-select-option :value="1">T1</a-select-option>
+            <a-select-option :value="2">T2</a-select-option>
+            <a-select-option :value="3">T3</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="国家">
@@ -113,9 +114,13 @@
             </div>
           </template>
           
-          <!-- 备注 -->
-          <template v-else-if="column.key === 'remark'">
-            <span class="text-ellipsis">{{ record.remark || '-' }}</span>
+          <!-- 最新事件 -->
+          <template v-else-if="column.key === 'latestEvent'">
+            <div v-if="record.latestEventContent" class="latest-event">
+              <span class="event-content text-ellipsis">{{ record.latestEventContent }}</span>
+              <span v-if="record.latestEventTime" class="event-time">{{ formatEventTime(record.latestEventTime) }}</span>
+            </div>
+            <span v-else class="text-muted">-</span>
           </template>
           
           <!-- 操作 -->
@@ -223,12 +228,12 @@ const pagination = reactive({
 
 // 表格列配置
 const columns = [
-  { title: '优先级', key: 'priority', dataIndex: 'priority', width: 100, sorter: true },
-  { title: '客户姓名', key: 'name', dataIndex: 'name', width: 150 },
-  { title: '公司', key: 'company', dataIndex: 'company', width: 200, ellipsis: true },
-  { title: '国家', key: 'country', dataIndex: 'country', width: 100 },
+  { title: '优先级', key: 'priority', dataIndex: 'priority', width: 80, sorter: true },
+  { title: '客户姓名', key: 'name', dataIndex: 'name', width: 130 },
+  { title: '公司', key: 'company', dataIndex: 'company', width: 150, ellipsis: true },
+  { title: '国家', key: 'country', dataIndex: 'country', width: 80 },
   { title: '跟进状态', key: 'followUpStatus', dataIndex: 'followUpStatus', width: 100 },
-  { title: '备注', key: 'remark', dataIndex: 'remark', width: 200, ellipsis: true },
+  { title: '最新事件', key: 'latestEvent', dataIndex: 'latestEventContent', width: 250, ellipsis: true },
   { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
 ]
 
@@ -262,15 +267,17 @@ const emailStatusMap: Record<number, { status: string; text: string }> = {
 
 // 优先级
 const priorityLabels: Record<number, string> = {
-  1: '高',
-  2: '中',
-  3: '低'
+  0: 'T0',
+  1: 'T1',
+  2: 'T2',
+  3: 'T3'
 }
 
 const priorityColors: Record<number, string> = {
-  1: 'red',
-  2: 'orange',
-  3: 'blue'
+  0: 'red',
+  1: 'orange',
+  2: 'blue',
+  3: 'default'
 }
 
 // 跟进状态颜色
@@ -282,6 +289,8 @@ const followUpStatusColors: Record<string, string> = {
 
 // 全球国家列表（按外贸重要性排序）
 const countries = [
+  // 中国及港澳台
+  '中国', '香港', '台湾', '澳门',
   // 亚洲主要国家
   '日本', '韩国', '印度', '新加坡', '马来西亚', '泰国', '越南', '印度尼西亚', '菲律宾',
   '巴基斯坦', '孟加拉国', '斯里兰卡', '缅甸', '柬埔寨', '老挝', '文莱', '蒙古',
@@ -419,6 +428,18 @@ const handleFormSuccess = () => {
   fetchCustomers()
 }
 
+// 格式化事件时间
+const formatEventTime = (time: string) => {
+  if (!time) return ''
+  const date = new Date(time)
+  const now = new Date()
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return '今天'
+  if (diffDays === 1) return '昨天'
+  if (diffDays < 7) return `${diffDays}天前`
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' })
+}
+
 // 查看客户详情（带ID验证）
 const handleViewDetail = (record: Customer) => {
   if (!record.id || !/^\d+$/.test(record.id)) {
@@ -536,6 +557,26 @@ onMounted(() => {
         background-color: #faad14;
       }
     }
+  }
+  
+  .latest-event {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    
+    .event-content {
+      color: #333;
+      font-size: 13px;
+    }
+    
+    .event-time {
+      color: #999;
+      font-size: 11px;
+    }
+  }
+  
+  .text-muted {
+    color: #999;
   }
 }
 </style>

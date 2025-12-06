@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `t_customer` (
     `id` BIGINT NOT NULL COMMENT '客户ID',
     `user_id` BIGINT NOT NULL COMMENT '所属用户ID',
     `name` VARCHAR(100) NOT NULL COMMENT '客户姓名',
-    `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
+    `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱（可选）',
     `phone` VARCHAR(50) DEFAULT NULL COMMENT '手机号',
     `company` VARCHAR(200) DEFAULT NULL COMMENT '所属公司',
     `position` VARCHAR(100) DEFAULT NULL COMMENT '职位',
@@ -89,6 +89,9 @@ CREATE TABLE IF NOT EXISTS `t_customer` (
     `wechat_qrcode` VARCHAR(500) DEFAULT NULL COMMENT '微信二维码图片URL',
     `whatsapp_name` VARCHAR(100) DEFAULT NULL COMMENT 'WhatsApp名称/号码',
     `whatsapp_qrcode` VARCHAR(500) DEFAULT NULL COMMENT 'WhatsApp二维码图片URL',
+    `business_card_front` VARCHAR(500) DEFAULT NULL COMMENT '名片正面图片路径',
+    `business_card_back` VARCHAR(500) DEFAULT NULL COMMENT '名片背面图片路径',
+    `follow_up_status` VARCHAR(20) DEFAULT 'pending_us' COMMENT '跟进状态: pending_customer=等待客户回复, pending_us=等待我们回复, completed=已完成',
     `remark` TEXT COMMENT '备注信息',
     `source` VARCHAR(50) DEFAULT 'manual' COMMENT '来源: manual=手动录入, ocr=名片识别, import=Excel导入',
     `source_file` VARCHAR(500) DEFAULT NULL COMMENT '来源文件(名片图片/Excel文件)',
@@ -108,8 +111,29 @@ CREATE TABLE IF NOT EXISTS `t_customer` (
     KEY `idx_company` (`company`),
     KEY `idx_meeting_time` (`meeting_time`),
     KEY `idx_created_at` (`created_at`),
-    KEY `idx_source` (`source`)
+    KEY `idx_source` (`source`),
+    KEY `idx_follow_up_status` (`follow_up_status`)
 ) ENGINE=InnoDB COMMENT='客户表';
+
+-- 客户事件表
+CREATE TABLE IF NOT EXISTS `t_customer_event` (
+    `id` BIGINT NOT NULL COMMENT '事件ID',
+    `user_id` BIGINT NOT NULL COMMENT '所属用户ID',
+    `customer_id` BIGINT NOT NULL COMMENT '客户ID',
+    `event_time` DATETIME NOT NULL COMMENT '事件时间',
+    `event_location` VARCHAR(200) DEFAULT NULL COMMENT '事件地点',
+    `event_content` TEXT NOT NULL COMMENT '事件内容',
+    `event_status` VARCHAR(20) NOT NULL DEFAULT 'pending_us' COMMENT '事件进度状态: pending_customer=等待客户回复, pending_us=等待我们回复',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除: 0=否, 1=是',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_customer_id` (`customer_id`),
+    KEY `idx_event_time` (`event_time`),
+    KEY `idx_event_status` (`event_status`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB COMMENT='客户事件表';
 
 -- 名片识别记录表
 CREATE TABLE IF NOT EXISTS `t_business_card` (
@@ -304,7 +328,59 @@ CREATE TABLE IF NOT EXISTS `t_email_attachment` (
 ) ENGINE=InnoDB COMMENT='邮件附件表';
 
 -- =====================================================
--- 4. 系统功能相关表
+-- 4. 产品管理相关表
+-- =====================================================
+
+-- 产品表
+CREATE TABLE IF NOT EXISTS `t_product` (
+    `id` BIGINT NOT NULL COMMENT '产品ID',
+    `user_id` BIGINT NOT NULL COMMENT '所属用户ID',
+    `brand_code` VARCHAR(20) DEFAULT NULL COMMENT '品牌缩写(MB/VL/SC等)',
+    `brand_name` VARCHAR(100) DEFAULT NULL COMMENT '品牌全称',
+    `xk_no` VARCHAR(50) NOT NULL COMMENT '内部编号',
+    `oe_no` VARCHAR(100) NOT NULL COMMENT 'OE编号',
+    `image_path` VARCHAR(500) DEFAULT NULL COMMENT '图片路径',
+    `price_min` DECIMAL(10,2) DEFAULT NULL COMMENT '最低价(RMB)',
+    `price_max` DECIMAL(10,2) DEFAULT NULL COMMENT '最高价(RMB)',
+    `price_avg` DECIMAL(10,2) DEFAULT NULL COMMENT '平均价(RMB)',
+    `remark` TEXT COMMENT '备注',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除: 0=否, 1=是',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_oe_no` (`oe_no`),
+    KEY `idx_brand_code` (`brand_code`),
+    KEY `idx_xk_no` (`xk_no`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB COMMENT='产品表';
+
+-- 产品导入记录表
+CREATE TABLE IF NOT EXISTS `t_product_import` (
+    `id` BIGINT NOT NULL COMMENT '导入ID',
+    `user_id` BIGINT NOT NULL COMMENT '用户ID',
+    `file_name` VARCHAR(200) NOT NULL COMMENT '文件名',
+    `file_path` VARCHAR(500) NOT NULL COMMENT '文件路径',
+    `file_size` BIGINT DEFAULT NULL COMMENT '文件大小(字节)',
+    `total_rows` INT DEFAULT 0 COMMENT '总行数',
+    `success_count` INT DEFAULT 0 COMMENT '成功数量',
+    `failed_count` INT DEFAULT 0 COMMENT '失败数量',
+    `skipped_count` INT DEFAULT 0 COMMENT '跳过数量(重复)',
+    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0=待处理, 1=处理中, 2=已完成, 3=失败',
+    `error_message` TEXT COMMENT '错误信息',
+    `started_at` DATETIME DEFAULT NULL COMMENT '开始处理时间',
+    `completed_at` DATETIME DEFAULT NULL COMMENT '完成时间',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '是否删除: 0=否, 1=是',
+    PRIMARY KEY (`id`),
+    KEY `idx_user_id` (`user_id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_created_at` (`created_at`)
+) ENGINE=InnoDB COMMENT='产品导入记录表';
+
+-- =====================================================
+-- 5. 系统功能相关表
 -- =====================================================
 
 -- 功能路线图表
@@ -325,20 +401,21 @@ CREATE TABLE IF NOT EXISTS `t_roadmap` (
 ) ENGINE=InnoDB COMMENT='功能路线图表';
 
 -- =====================================================
--- 5. 初始化数据
+-- 6. 初始化数据
 -- =====================================================
 
 -- 初始化路线图数据
 INSERT INTO `t_roadmap` (`id`, `module_name`, `module_key`, `description`, `planned_quarter`, `status`, `sort_order`) VALUES
-(1, '客户管理', 'customer', '名片识别、客户信息管理、Excel导入导出', '2025 Q4', 'released', 1),
+(1, '客户管理', 'customer', '名片识别、客户信息管理、Excel导入导出、事件跟进', '2025 Q4', 'released', 1),
 (2, '邮件营销', 'email', '邮件模板、批量发送、发送日志追踪', '2025 Q4', 'released', 2),
-(3, '邮件追踪增强', 'email-tracking', '邮件打开率、点击率追踪', '2026 Q1', 'developing', 3),
-(4, '客户标签系统', 'customer-tag', '自定义标签、智能标签', '2026 Q1', 'planned', 4),
-(5, '移动端H5适配', 'mobile-h5', '手机浏览器访问适配', '2026 Q1', 'planned', 5),
-(6, '销售管理', 'sales', '报价单、合同、订单管理', '2026 Q2', 'planned', 6),
-(7, '物流跟踪', 'logistics', '货运追踪、清关进度', '2026 Q3', 'planned', 7),
-(8, '供应链管理', 'supply-chain', '供应商、采购、库存管理', '2026 Q3', 'planned', 8),
-(9, '文档中心', 'document', '合同、发票、证书管理', '2026 Q4', 'planned', 9),
-(10, '数据分析', 'analytics', '销售报表、客户分析、业务预测', '2027', 'planned', 10)
+(3, '产品管理', 'product', '产品目录、Excel导入、智能报价、报价单导出', '2025 Q4', 'released', 3),
+(4, '邮件追踪增强', 'email-tracking', '邮件打开率、点击率追踪', '2026 Q1', 'developing', 4),
+(5, '客户标签系统', 'customer-tag', '自定义标签、智能标签', '2026 Q1', 'planned', 5),
+(6, '移动端H5适配', 'mobile-h5', '手机浏览器访问适配', '2026 Q1', 'planned', 6),
+(7, '销售管理', 'sales', '报价单、合同、订单管理', '2026 Q2', 'planned', 7),
+(8, '物流跟踪', 'logistics', '货运追踪、清关进度', '2026 Q3', 'planned', 8),
+(9, '供应链管理', 'supply-chain', '供应商、采购、库存管理', '2026 Q3', 'planned', 9),
+(10, '文档中心', 'document', '合同、发票、证书管理', '2026 Q4', 'planned', 10),
+(11, '数据分析', 'analytics', '销售报表、客户分析、业务预测', '2027', 'planned', 11)
 ON DUPLICATE KEY UPDATE `module_name` = VALUES(`module_name`);
 

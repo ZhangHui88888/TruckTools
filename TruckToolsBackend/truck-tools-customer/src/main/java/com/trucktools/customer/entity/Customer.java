@@ -72,6 +72,12 @@ public class Customer extends BaseEntity {
     @Schema(description = "WhatsApp二维码图片URL")
     private String whatsappQrcode;
 
+    @Schema(description = "名片正面图片路径")
+    private String businessCardFront;
+
+    @Schema(description = "名片背面图片路径")
+    private String businessCardBack;
+
     @Schema(description = "跟进状态: pending_customer=等待客户回复, pending_us=等待我们回复, completed=已完成")
     private String followUpStatus;
 

@@ -64,6 +64,12 @@ public class CustomerVO {
     @Schema(description = "WhatsApp二维码图片URL")
     private String whatsappQrcode;
 
+    @Schema(description = "名片正面图片URL")
+    private String businessCardFront;
+
+    @Schema(description = "名片背面图片URL")
+    private String businessCardBack;
+
     @Schema(description = "跟进状态: pending_customer=等待客户回复, pending_us=等待我们回复, completed=已完成")
     private String followUpStatus;
 
@@ -96,5 +102,14 @@ public class CustomerVO {
 
     @Schema(description = "更新时间")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "最新事件内容")
+    private String latestEventContent;
+
+    @Schema(description = "最新事件时间")
+    private LocalDateTime latestEventTime;
+
+    @Schema(description = "最新事件类型")
+    private String latestEventType;
 }
 

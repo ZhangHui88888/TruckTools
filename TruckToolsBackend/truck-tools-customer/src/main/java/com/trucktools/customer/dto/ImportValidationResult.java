@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 导入数据验证结果
@@ -37,6 +38,12 @@ public class ImportValidationResult {
 
     @Schema(description = "错误报告下载URL")
     private String errorFileUrl;
+
+    @Schema(description = "可导入数据预览（新数据）")
+    private List<Map<String, String>> newDataPreview;
+
+    @Schema(description = "可更新数据预览（重复数据）")
+    private List<Map<String, String>> duplicateDataPreview;
 
     @Data
     @Builder

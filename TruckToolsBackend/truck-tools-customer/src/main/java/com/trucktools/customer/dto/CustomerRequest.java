@@ -42,10 +42,10 @@ public class CustomerRequest {
     @Schema(description = "公司官网")
     private String website;
 
-    @Min(value = 1, message = "优先级范围为1-3")
-    @Max(value = 3, message = "优先级范围为1-3")
-    @Schema(description = "优先级: 1=高, 2=中, 3=低")
-    private Integer priority = 2;
+    @Min(value = 0, message = "优先级范围为0-3")
+    @Max(value = 3, message = "优先级范围为0-3")
+    @Schema(description = "优先级: 0=T0, 1=T1, 2=T2, 3=T3")
+    private Integer priority = 1;
 
     @Schema(description = "会面时间（日期格式：YYYY-MM-DD）")
     private String meetingTime;

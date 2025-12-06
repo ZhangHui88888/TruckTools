@@ -5,6 +5,7 @@ import com.trucktools.customer.dto.CustomerQueryParam;
 import com.trucktools.customer.dto.CustomerRequest;
 import com.trucktools.customer.dto.CustomerVO;
 import com.trucktools.customer.entity.Customer;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -63,5 +64,11 @@ public interface CustomerService {
      * 更新客户邮件发送信息
      */
     void updateEmailInfo(Long customerId);
+
+    /**
+     * 上传名片图片
+     * @param side front 或 back
+     */
+    String uploadBusinessCard(Long userId, Long customerId, String side, MultipartFile file);
 }
 

@@ -203,12 +203,18 @@ public class CustomerImportServiceImpl implements CustomerImportService {
         // 验证数据
         List<ImportValidationResult.ImportError> errors = new ArrayList<>();
         Set<String> existingCustomerKeys = getExistingCustomerKeys(userId); // 姓名+邮箱+国家
+        Set<String> existingCustomerKeysByName = getExistingCustomerKeysByName(userId); // 姓名+公司+国家（备用）
         Set<String> keysInFile = new HashSet<>(); // 文件内已出现的组合
+        Set<String> keysInFileByName = new HashSet<>(); // 文件内已出现的组合（备用）
         int validRows = 0;
         int invalidRows = 0;
         int duplicateRows = 0;
         int duplicateInFile = 0; // 文件内重复
         int duplicateInDb = 0; // 数据库重复
+        
+        // 预览数据收集
+        List<Map<String, String>> newDataPreview = new ArrayList<>(); // 新数据预览
+        List<Map<String, String>> duplicateDataPreview = new ArrayList<>(); // 重复数据预览
 
         // 反转映射：系统字段 -> Excel列名
         Map<String, String> reverseMapping = new HashMap<>();
@@ -280,13 +286,13 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                 rowValid = false;
             }
             
-            // 检查重复（只有当邮箱不为空时才进行重复检查）
+            // 获取国家字段
+            String countryColumn = reverseMapping.get("country");
+            String country = countryColumn != null ? row.get(countryColumn) : "";
+            
+            // 检查重复
             if (StrUtil.isNotBlank(email)) {
-                // 获取国家字段
-                String countryColumn = reverseMapping.get("country");
-                String country = countryColumn != null ? row.get(countryColumn) : "";
-                
-                // 生成唯一键：姓名+邮箱+国家（全部转小写比较）
+                // 有邮箱时：使用姓名+邮箱+国家作为唯一键
                 String customerKey = buildCustomerKey(name, email, country);
                 
                 // 检查文件内重复
@@ -316,6 +322,37 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                 }
                 
                 keysInFile.add(customerKey);
+            } else {
+                // 无邮箱时：使用姓名+公司+国家作为唯一键
+                String customerKeyByName = buildCustomerKeyByName(name, company, country);
+                
+                // 检查文件内重复
+                if (keysInFileByName.contains(customerKeyByName)) {
+                    errors.add(ImportValidationResult.ImportError.builder()
+                            .row(rowNum)
+                            .field("name+company+country")
+                            .value(name + " / " + company + " / " + country)
+                            .message("文件内客户重复（姓名+公司+国家一致），将跳过此行")
+                            .build());
+                    isDuplicate = true;
+                    duplicateInFile++;
+                }
+                
+                // 检查数据库重复
+                if (!keysInFileByName.contains(customerKeyByName) && existingCustomerKeysByName.contains(customerKeyByName)) {
+                    String action = "overwrite".equals(request.getImportMode()) ? "将覆盖更新" : 
+                                  "merge".equals(request.getImportMode()) ? "将合并更新" : "将作为新客户添加";
+                    errors.add(ImportValidationResult.ImportError.builder()
+                            .row(rowNum)
+                            .field("name+company+country")
+                            .value(name + " / " + company + " / " + country)
+                            .message("客户已存在（姓名+公司+国家一致），" + action)
+                            .build());
+                    isDuplicate = true;
+                    duplicateInDb++;
+                }
+                
+                keysInFileByName.add(customerKeyByName);
             }
 
             // 验证优先级
@@ -364,6 +401,15 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                 validRows++;
                 if (isDuplicate) {
                     duplicateRows++; // 重复数据仍算有效，只是额外标记
+                    // 收集重复数据预览（最多20条）
+                    if (duplicateDataPreview.size() < 20) {
+                        duplicateDataPreview.add(buildPreviewRow(row, reverseMapping, rowNum));
+                    }
+                } else {
+                    // 收集新数据预览（最多20条）
+                    if (newDataPreview.size() < 20) {
+                        newDataPreview.add(buildPreviewRow(row, reverseMapping, rowNum));
+                    }
                 }
             } else {
                 invalidRows++;
@@ -386,6 +432,8 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                 .duplicateInFile(duplicateInFile)
                 .duplicateInDb(duplicateInDb)
                 .errors(errors)
+                .newDataPreview(newDataPreview)
+                .duplicateDataPreview(duplicateDataPreview)
                 .build();
     }
 
@@ -410,7 +458,8 @@ public class CustomerImportServiceImpl implements CustomerImportService {
         customerImportMapper.updateById(importRecord);
 
         Map<String, String> fieldMapping = validateRequest.getFieldMapping();
-        String importMode = request.getImportMode() != null ? request.getImportMode() : "append";
+        String importMode = request.getImportMode() != null ? request.getImportMode() : "overwrite";
+        String duplicateAction = request.getDuplicateAction() != null ? request.getDuplicateAction() : "skip";
 
         // 反转映射
         Map<String, String> reverseMapping = new HashMap<>();
@@ -421,7 +470,9 @@ public class CustomerImportServiceImpl implements CustomerImportService {
         }
 
         Set<String> existingCustomerKeysInDb = getExistingCustomerKeys(userId);
-        Set<String> importedKeys = new HashSet<>(); // 本次导入中已处理的客户键
+        Set<String> existingCustomerKeysByNameInDb = getExistingCustomerKeysByName(userId);
+        Set<String> importedKeys = new HashSet<>(); // 本次导入中已处理的客户键（有邮箱）
+        Set<String> importedKeysByName = new HashSet<>(); // 本次导入中已处理的客户键（无邮箱）
         int successCount = 0;
         int failedCount = 0;
         int skippedCount = 0;
@@ -460,17 +511,16 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                     continue;
                 }
 
-                // 重复检查（只有当邮箱不为空时才进行）
-                // 如果邮箱为空，无法准确判断重复，每条数据都作为新客户导入
+                // 重复检查
                 if (StrUtil.isNotBlank(email)) {
-                    // 生成唯一键：姓名+邮箱+国家
+                    // 有邮箱时：使用姓名+邮箱+国家作为唯一键
                     String customerKey = buildCustomerKey(name, email, country);
                     boolean existsInDb = existingCustomerKeysInDb.contains(customerKey);
                     boolean existsInCurrentImport = importedKeys.contains(customerKey);
 
                     if (existsInDb) {
-                        if ("overwrite".equals(importMode) || "merge".equals(importMode)) {
-                            // 覆盖或合并模式：更新现有客户
+                        if ("update".equals(duplicateAction)) {
+                            // 更新模式：更新现有客户
                             Customer existing = findByCustomerKey(userId, name, email, country);
                             if (existing != null) {
                                 updateCustomerFromRow(existing, row, reverseMapping, "merge".equals(importMode));
@@ -479,8 +529,12 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                                 importedKeys.add(customerKey);
                                 continue;
                             }
+                        } else {
+                            // skip模式：跳过重复数据
+                            skippedCount++;
+                            importedKeys.add(customerKey);
+                            continue;
                         }
-                        // append 模式：仍然创建新客户（允许重复）
                     }
 
                     // 文件内重复：跳过，只导入第一条
@@ -491,6 +545,39 @@ public class CustomerImportServiceImpl implements CustomerImportService {
                     
                     // 记录已导入的客户键
                     importedKeys.add(customerKey);
+                } else {
+                    // 无邮箱时：使用姓名+公司+国家作为唯一键
+                    String customerKeyByName = buildCustomerKeyByName(name, company, country);
+                    boolean existsInDb = existingCustomerKeysByNameInDb.contains(customerKeyByName);
+                    boolean existsInCurrentImport = importedKeysByName.contains(customerKeyByName);
+
+                    if (existsInDb) {
+                        if ("update".equals(duplicateAction)) {
+                            // 更新模式：更新现有客户
+                            Customer existing = findByCustomerKeyByName(userId, name, company, country);
+                            if (existing != null) {
+                                updateCustomerFromRow(existing, row, reverseMapping, "merge".equals(importMode));
+                                customerMapper.updateById(existing);
+                                successCount++;
+                                importedKeysByName.add(customerKeyByName);
+                                continue;
+                            }
+                        } else {
+                            // skip模式：跳过重复数据
+                            skippedCount++;
+                            importedKeysByName.add(customerKeyByName);
+                            continue;
+                        }
+                    }
+
+                    // 文件内重复：跳过，只导入第一条
+                    if (existsInCurrentImport) {
+                        skippedCount++;
+                        continue;
+                    }
+                    
+                    // 记录已导入的客户键
+                    importedKeysByName.add(customerKeyByName);
                 }
 
                 // 创建新客户
@@ -607,6 +694,35 @@ public class CustomerImportServiceImpl implements CustomerImportService {
     }
 
     /**
+     * 构建客户唯一键（姓名+公司+国家）- 用于无邮箱时的备用匹配
+     */
+    private String buildCustomerKeyByName(String name, String company, String country) {
+        String n = StrUtil.isNotBlank(name) ? name.toLowerCase().trim() : "";
+        String comp = StrUtil.isNotBlank(company) ? company.toLowerCase().trim() : "";
+        String c = StrUtil.isNotBlank(country) ? country.toLowerCase().trim() : "";
+        return "name:" + n + "|" + comp + "|" + c;
+    }
+
+    /**
+     * 构建预览行数据
+     */
+    private Map<String, String> buildPreviewRow(Map<String, String> row, Map<String, String> reverseMapping, int rowNum) {
+        Map<String, String> preview = new LinkedHashMap<>();
+        preview.put("rowNum", String.valueOf(rowNum));
+        preview.put("name", getFieldFromRow(row, reverseMapping, "name"));
+        preview.put("email", getFieldFromRow(row, reverseMapping, "email"));
+        preview.put("phone", getFieldFromRow(row, reverseMapping, "phone"));
+        preview.put("company", getFieldFromRow(row, reverseMapping, "company"));
+        preview.put("country", getFieldFromRow(row, reverseMapping, "country"));
+        return preview;
+    }
+
+    private String getFieldFromRow(Map<String, String> row, Map<String, String> reverseMapping, String field) {
+        String column = reverseMapping.get(field);
+        return column != null ? StrUtil.nullToEmpty(row.get(column)) : "";
+    }
+
+    /**
      * 获取用户已有的所有客户唯一键（姓名+邮箱+国家）
      */
     private Set<String> getExistingCustomerKeys(Long userId) {
@@ -617,6 +733,20 @@ public class CustomerImportServiceImpl implements CustomerImportService {
         );
         return customers.stream()
                 .map(c -> buildCustomerKey(c.getName(), c.getEmail(), c.getCountry()))
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * 获取用户已有的所有客户唯一键（姓名+公司+国家）- 用于无邮箱时的备用匹配
+     */
+    private Set<String> getExistingCustomerKeysByName(Long userId) {
+        List<Customer> customers = customerMapper.selectList(
+                new LambdaQueryWrapper<Customer>()
+                        .eq(Customer::getUserId, userId)
+                        .select(Customer::getName, Customer::getCompany, Customer::getCountry)
+        );
+        return customers.stream()
+                .map(c -> buildCustomerKeyByName(c.getName(), c.getCompany(), c.getCountry()))
                 .collect(Collectors.toSet());
     }
 
@@ -633,6 +763,31 @@ public class CustomerImportServiceImpl implements CustomerImportService {
             wrapper.eq(Customer::getEmail, email);
         } else {
             wrapper.and(w -> w.isNull(Customer::getEmail).or().eq(Customer::getEmail, ""));
+        }
+        
+        // 处理国家（可能为空）
+        if (StrUtil.isNotBlank(country)) {
+            wrapper.eq(Customer::getCountry, country);
+        } else {
+            wrapper.and(w -> w.isNull(Customer::getCountry).or().eq(Customer::getCountry, ""));
+        }
+        
+        return customerMapper.selectOne(wrapper);
+    }
+
+    /**
+     * 根据姓名+公司+国家查找客户（用于无邮箱时的备用匹配）
+     */
+    private Customer findByCustomerKeyByName(Long userId, String name, String company, String country) {
+        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<Customer>()
+                .eq(Customer::getUserId, userId)
+                .eq(Customer::getName, name);
+        
+        // 处理公司（可能为空）
+        if (StrUtil.isNotBlank(company)) {
+            wrapper.eq(Customer::getCompany, company);
+        } else {
+            wrapper.and(w -> w.isNull(Customer::getCompany).or().eq(Customer::getCompany, ""));
         }
         
         // 处理国家（可能为空）

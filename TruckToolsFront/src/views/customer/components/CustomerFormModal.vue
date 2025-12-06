@@ -23,9 +23,10 @@
         <a-col :span="12">
           <a-form-item label="优先级" name="priority">
             <a-radio-group v-model:value="formState.priority" button-style="solid">
-              <a-radio-button :value="1">高</a-radio-button>
-              <a-radio-button :value="2">中</a-radio-button>
-              <a-radio-button :value="3">低</a-radio-button>
+              <a-radio-button :value="0">T0</a-radio-button>
+              <a-radio-button :value="1">T1</a-radio-button>
+              <a-radio-button :value="2">T2</a-radio-button>
+              <a-radio-button :value="3">T3</a-radio-button>
             </a-radio-group>
           </a-form-item>
         </a-col>
@@ -119,6 +120,46 @@
           placeholder="请输入备注信息"
         />
       </a-form-item>
+
+      <!-- 名片上传（仅编辑时显示） -->
+      <a-form-item v-if="customer" label="名片" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
+        <div class="business-card-upload">
+          <div class="card-item">
+            <div class="card-label">正面</div>
+            <div class="card-upload-area" @click="triggerCardUpload('front')">
+              <img v-if="formState.businessCardFront" :src="formState.businessCardFront" alt="名片正面" />
+              <div v-else class="upload-placeholder">
+                <PlusOutlined style="font-size: 20px; color: #999" />
+                <div style="margin-top: 4px; color: #999; font-size: 12px">上传正面</div>
+              </div>
+              <div v-if="formState.businessCardFront" class="card-overlay">
+                <span>更换</span>
+              </div>
+            </div>
+          </div>
+          <div class="card-item">
+            <div class="card-label">背面</div>
+            <div class="card-upload-area" @click="triggerCardUpload('back')">
+              <img v-if="formState.businessCardBack" :src="formState.businessCardBack" alt="名片背面" />
+              <div v-else class="upload-placeholder">
+                <PlusOutlined style="font-size: 20px; color: #999" />
+                <div style="margin-top: 4px; color: #999; font-size: 12px">上传背面</div>
+              </div>
+              <div v-if="formState.businessCardBack" class="card-overlay">
+                <span>更换</span>
+              </div>
+            </div>
+          </div>
+          <input
+            ref="cardInputRef"
+            type="file"
+            accept="image/*"
+            style="display: none"
+            @change="handleCardSelect"
+          />
+        </div>
+        <div class="upload-tip">支持 jpg/png/gif/webp 格式</div>
+      </a-form-item>
     </a-form>
   </a-modal>
 </template>
@@ -127,6 +168,7 @@
 import { ref, reactive, watch } from 'vue'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { PlusOutlined } from '@ant-design/icons-vue'
 import dayjs from 'dayjs'
 import { customerApi } from '@/api/customer'
 import type { Customer } from '@/api/customer'
@@ -145,6 +187,10 @@ const emit = defineEmits<{
 const formRef = ref<FormInstance>()
 const loading = ref(false)
 
+// 名片上传
+const cardInputRef = ref<HTMLInputElement | null>(null)
+const currentCardSide = ref<'front' | 'back'>('front')
+
 const formState = reactive<{
   name: string
   email: string
@@ -160,6 +206,8 @@ const formState = reactive<{
   whatsappName: string
   remark: string
   priority: number
+  businessCardFront: string
+  businessCardBack: string
 }>({
   name: '',
   email: '',
@@ -174,7 +222,9 @@ const formState = reactive<{
   wechatName: '',
   whatsappName: '',
   remark: '',
-  priority: 2
+  priority: 1,
+  businessCardFront: '',
+  businessCardBack: ''
 })
 
 const rules: Record<string, any[]> = {
@@ -186,6 +236,8 @@ const rules: Record<string, any[]> = {
 
 // 全球国家列表（按外贸重要性排序）
 const countries = [
+  // 中国及港澳台
+  '中国', '香港', '台湾', '澳门',
   // 亚洲主要国家
   '日本', '韩国', '印度', '新加坡', '马来西亚', '泰国', '越南', '印度尼西亚', '菲律宾',
   '巴基斯坦', '孟加拉国', '斯里兰卡', '缅甸', '柬埔寨', '老挝', '文莱', '蒙古',
@@ -229,7 +281,9 @@ watch(
       formState.wechatName = val.wechatName || ''
       formState.whatsappName = val.whatsappName || ''
       formState.remark = val.remark || ''
-      formState.priority = val.priority || 2
+      formState.priority = val.priority ?? 1
+      formState.businessCardFront = val.businessCardFront || ''
+      formState.businessCardBack = val.businessCardBack || ''
     } else {
       resetForm()
     }
@@ -251,7 +305,48 @@ const resetForm = () => {
   formState.wechatName = ''
   formState.whatsappName = ''
   formState.remark = ''
-  formState.priority = 2
+  formState.priority = 1
+  formState.businessCardFront = ''
+  formState.businessCardBack = ''
+}
+
+// 触发名片上传
+const triggerCardUpload = (side: 'front' | 'back') => {
+  currentCardSide.value = side
+  cardInputRef.value?.click()
+}
+
+// 处理名片选择
+const handleCardSelect = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !props.customer) return
+
+  // 验证文件大小（最大 10MB）
+  if (file.size > 10 * 1024 * 1024) {
+    message.error('图片大小不能超过 10MB')
+    return
+  }
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const res = await customerApi.uploadBusinessCard(props.customer.id, currentCardSide.value, formData)
+    if (res && res.data) {
+      if (currentCardSide.value === 'front') {
+        formState.businessCardFront = res.data.imageUrl
+      } else {
+        formState.businessCardBack = res.data.imageUrl
+      }
+      message.success('名片上传成功')
+    }
+  } catch {
+    message.error('名片上传失败')
+  } finally {
+    // 清空 input 以便可以再次选择同一文件
+    input.value = ''
+  }
 }
 
 // 提交表单
@@ -293,4 +388,77 @@ const handleSubmit = async () => {
   }
 }
 </script>
+
+<style lang="less" scoped>
+.business-card-upload {
+  display: flex;
+  gap: 16px;
+
+  .card-item {
+    .card-label {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .card-upload-area {
+      width: 160px;
+      height: 100px;
+      border: 1px dashed #d9d9d9;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+      cursor: pointer;
+      transition: border-color 0.3s;
+
+      &:hover {
+        border-color: #1677ff;
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .upload-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #fafafa;
+      }
+
+      .card-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.3s;
+        color: #fff;
+        font-size: 14px;
+      }
+
+      &:hover .card-overlay {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.upload-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #999;
+}
+</style>
 

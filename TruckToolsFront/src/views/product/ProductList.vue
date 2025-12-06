@@ -131,9 +131,15 @@
               <!-- 操作 -->
               <template v-else-if="column.key === 'action'">
                 <a-space>
-                  <a-tooltip title="添加到报价单">
-                    <a-button type="link" size="small" @click="addToQuote(record)">
+                  <a-tooltip :title="isInQuote(record.id) ? '点击移除' : '添加到报价单'">
+                    <a-button 
+                      type="link" 
+                      size="small" 
+                      :class="{ 'in-quote': isInQuote(record.id) }"
+                      @click="addToQuote(record)"
+                    >
                       <ShoppingCartOutlined />
+                      <span v-if="isInQuote(record.id)" class="in-quote-badge">✓</span>
                     </a-button>
                   </a-tooltip>
                   <a-tooltip title="编辑">
@@ -276,6 +282,18 @@ const exchangeRate = ref(7.2)
 const exchangeRateLoading = ref(false)
 const exchangeRateUpdatedAt = ref<string>('')
 const selectedRowKeys = ref<string[]>([])
+const quoteProductIds = ref<Set<string>>(new Set())
+
+// 刷新报价单中的产品ID
+const refreshQuoteProductIds = () => {
+  const quoteItems = JSON.parse(sessionStorage.getItem('quoteItems') || '[]')
+  quoteProductIds.value = new Set(quoteItems.map((item: any) => item.productId))
+}
+
+// 检查产品是否在报价单中
+const isInQuote = (productId: string) => {
+  return quoteProductIds.value.has(productId)
+}
 
 // 获取实时汇率
 const fetchExchangeRate = async () => {
@@ -469,17 +487,21 @@ const showImagePreview = (record: Product) => {
   }
 }
 
-// 添加到报价单
+// 添加/移除报价单
 const addToQuote = (record: Product) => {
-  // 存储到 sessionStorage
   const quoteItems = JSON.parse(sessionStorage.getItem('quoteItems') || '[]')
   const existingIndex = quoteItems.findIndex((item: any) => item.productId === record.id)
   
   if (existingIndex >= 0) {
-    message.warning('该产品已在报价单中')
+    // 已存在，移除
+    quoteItems.splice(existingIndex, 1)
+    sessionStorage.setItem('quoteItems', JSON.stringify(quoteItems))
+    refreshQuoteProductIds()
+    message.success('已从报价单移除')
     return
   }
 
+  // 不存在，添加
   quoteItems.push({
     productId: record.id,
     xkNo: record.xkNo,
@@ -491,6 +513,7 @@ const addToQuote = (record: Product) => {
   })
   
   sessionStorage.setItem('quoteItems', JSON.stringify(quoteItems))
+  refreshQuoteProductIds()
   message.success('已添加到报价单')
 }
 
@@ -519,6 +542,7 @@ const batchAddToQuote = () => {
   })
 
   sessionStorage.setItem('quoteItems', JSON.stringify(quoteItems))
+  refreshQuoteProductIds()
   message.success(`已添加 ${addedCount} 个产品到报价单`)
   selectedRowKeys.value = []
 }
@@ -623,6 +647,7 @@ onMounted(() => {
   initExchangeRate()
   fetchBrands()
   fetchProducts()
+  refreshQuoteProductIds()
 })
 </script>
 
@@ -888,6 +913,21 @@ onMounted(() => {
   margin-top: 8px;
   font-size: 12px;
   color: #999;
+}
+
+// 已在报价单中的样式
+.in-quote {
+  color: #52c41a !important;
+  position: relative;
+  
+  .in-quote-badge {
+    position: absolute;
+    top: -2px;
+    right: -6px;
+    font-size: 10px;
+    font-weight: bold;
+    color: #52c41a;
+  }
 }
 </style>
 

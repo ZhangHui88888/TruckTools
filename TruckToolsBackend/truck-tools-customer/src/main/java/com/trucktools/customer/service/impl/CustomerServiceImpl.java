@@ -9,20 +9,30 @@ import com.trucktools.customer.dto.CustomerQueryParam;
 import com.trucktools.customer.dto.CustomerRequest;
 import com.trucktools.customer.dto.CustomerVO;
 import com.trucktools.customer.entity.Customer;
+import com.trucktools.customer.entity.CustomerEvent;
+import com.trucktools.customer.mapper.CustomerEventMapper;
 import com.trucktools.customer.mapper.CustomerMapper;
 import com.trucktools.customer.service.CustomerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
 import cn.hutool.core.util.StrUtil;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +44,10 @@ import java.util.stream.Collectors;
 public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerMapper customerMapper;
+    private final CustomerEventMapper customerEventMapper;
+
+    @Value("${app.upload.path:./uploads}")
+    private String uploadPath;
 
     @Override
     public PageResult<CustomerVO> getPage(CustomerQueryParam param) {
@@ -78,7 +92,17 @@ public class CustomerServiceImpl implements CustomerService {
         Page<Customer> result = customerMapper.selectPage(page, wrapper);
         
         List<CustomerVO> list = result.getRecords().stream()
-                .map(this::convertToVO)
+                .map(customer -> {
+                    CustomerVO vo = convertToVO(customer);
+                    // 填充最新事件
+                    CustomerEvent latestEvent = customerEventMapper.selectLatestByCustomerId(customer.getId());
+                    if (latestEvent != null) {
+                        vo.setLatestEventContent(latestEvent.getEventContent());
+                        vo.setLatestEventTime(latestEvent.getEventTime());
+                        vo.setLatestEventType(latestEvent.getEventStatus());
+                    }
+                    return vo;
+                })
                 .collect(Collectors.toList());
         
         return PageResult.of(list, result.getTotal(), param.getPage(), param.getPageSize());
@@ -258,6 +282,8 @@ public class CustomerServiceImpl implements CustomerService {
         vo.setWechatQrcode(customer.getWechatQrcode());
         vo.setWhatsappName(customer.getWhatsappName());
         vo.setWhatsappQrcode(customer.getWhatsappQrcode());
+        vo.setBusinessCardFront(customer.getBusinessCardFront());
+        vo.setBusinessCardBack(customer.getBusinessCardBack());
         vo.setFollowUpStatus(customer.getFollowUpStatus());
         vo.setRemark(customer.getRemark());
         vo.setSource(customer.getSource());
@@ -277,6 +303,81 @@ public class CustomerServiceImpl implements CustomerService {
         }
         
         return vo;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public String uploadBusinessCard(Long userId, Long customerId, String side, MultipartFile file) {
+        // 验证客户归属
+        Customer customer = customerMapper.selectById(customerId);
+        if (customer == null || !customer.getUserId().equals(userId)) {
+            throw new BusinessException(ResultCode.CUSTOMER_NOT_FOUND);
+        }
+
+        // 验证 side 参数
+        if (!"front".equals(side) && !"back".equals(side)) {
+            throw new BusinessException("side 参数必须是 front 或 back");
+        }
+
+        // 验证文件
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException("请选择要上传的图片");
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename == null) {
+            throw new BusinessException("文件名不能为空");
+        }
+
+        // 验证文件类型
+        String extension = originalFilename.substring(originalFilename.lastIndexOf(".")).toLowerCase();
+        if (!".jpg".equals(extension) && !".jpeg".equals(extension) && 
+            !".png".equals(extension) && !".gif".equals(extension) && 
+            !".webp".equals(extension)) {
+            throw new BusinessException("只支持 jpg/jpeg/png/gif/webp 格式的图片");
+        }
+
+        try {
+            // 生成文件路径: uploads/customers/business-cards/{date}/{uuid}.{ext}
+            String dateDir = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd"));
+            String newFileName = UUID.randomUUID().toString().replace("-", "") + extension;
+            String relativePath = "/uploads/customers/business-cards/" + dateDir + "/" + newFileName;
+            
+            // 创建目录
+            Path targetDir = Paths.get(uploadPath, "customers", "business-cards", dateDir);
+            Files.createDirectories(targetDir);
+            
+            // 保存文件
+            Path targetPath = targetDir.resolve(newFileName);
+            file.transferTo(targetPath.toFile());
+            
+            // 删除旧图片（如果存在）
+            String oldPath = "front".equals(side) ? customer.getBusinessCardFront() : customer.getBusinessCardBack();
+            if (StrUtil.isNotBlank(oldPath)) {
+                try {
+                    String oldFilePath = oldPath.replace("/uploads/", "");
+                    Path oldFile = Paths.get(uploadPath, oldFilePath);
+                    Files.deleteIfExists(oldFile);
+                } catch (Exception e) {
+                    log.warn("删除旧名片图片失败: {}", oldPath, e);
+                }
+            }
+            
+            // 更新数据库
+            if ("front".equals(side)) {
+                customer.setBusinessCardFront(relativePath);
+            } else {
+                customer.setBusinessCardBack(relativePath);
+            }
+            customerMapper.updateById(customer);
+            
+            log.info("客户名片上传成功: customerId={}, side={}, path={}", customerId, side, relativePath);
+            return relativePath;
+            
+        } catch (IOException e) {
+            log.error("名片上传失败", e);
+            throw new BusinessException("名片上传失败: " + e.getMessage());
+        }
     }
 }
 

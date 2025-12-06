@@ -28,9 +28,10 @@
           <a-col :span="12">
             <a-form-item label="优先级">
               <a-radio-group v-model:value="formState.priority" button-style="solid">
-                <a-radio-button :value="1">高</a-radio-button>
-                <a-radio-button :value="2">中</a-radio-button>
-                <a-radio-button :value="3">低</a-radio-button>
+                <a-radio-button :value="0">T0</a-radio-button>
+                <a-radio-button :value="1">T1</a-radio-button>
+                <a-radio-button :value="2">T2</a-radio-button>
+                <a-radio-button :value="3">T3</a-radio-button>
               </a-radio-group>
             </a-form-item>
           </a-col>
@@ -122,7 +123,7 @@ const formState = reactive({
   website: '',
   address: '',
   country: undefined as string | undefined,
-  priority: 2
+  priority: 1
 })
 
 const rules = {
@@ -134,6 +135,8 @@ const rules = {
 
 // 全球国家列表（按外贸重要性排序）
 const countries = [
+  // 中国及港澳台
+  '中国', '香港', '台湾', '澳门',
   // 亚洲主要国家
   '日本', '韩国', '印度', '新加坡', '马来西亚', '泰国', '越南', '印度尼西亚', '菲律宾',
   '巴基斯坦', '孟加拉国', '斯里兰卡', '缅甸', '柬埔寨', '老挝', '文莱', '蒙古',
@@ -172,7 +175,7 @@ watch(
       formState.website = val.parsedData.website || ''
       formState.address = val.parsedData.address || ''
       formState.country = undefined
-      formState.priority = val.priority || 2
+      formState.priority = val.priority ?? 1
     }
   },
   { immediate: true }

@@ -19,6 +19,8 @@ export interface Customer {
   wechatQrcode?: string
   whatsappName?: string
   whatsappQrcode?: string
+  businessCardFront?: string
+  businessCardBack?: string
   followUpStatus?: string
   remark?: string
   source: 'manual' | 'ocr' | 'import'
@@ -85,6 +87,8 @@ export interface ImportValidation {
   duplicateInDb?: number
   errors: { row: number; field: string; value: string; message: string }[]
   errorFileUrl?: string
+  newDataPreview?: { rowNum: string; name: string; email: string; phone: string; company: string; country: string }[]
+  duplicateDataPreview?: { rowNum: string; name: string; email: string; phone: string; company: string; country: string }[]
 }
 
 export interface ImportStatus {
@@ -138,6 +142,11 @@ export const customerApi = {
   // 更新客户
   update(id: string, data: Partial<Customer>) {
     return http.put(`/customers/${id}`, data)
+  },
+
+  // 上传名片图片
+  uploadBusinessCard(id: string, side: 'front' | 'back', formData: FormData) {
+    return http.upload<{ imageUrl: string }>(`/customers/${id}/business-card/${side}`, formData)
   },
 
   // 删除客户

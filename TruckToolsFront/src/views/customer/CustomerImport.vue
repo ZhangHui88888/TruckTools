@@ -166,9 +166,35 @@
             </a-col>
           </a-row>
           
-          <!-- 重复数据详细说明 -->
+          <!-- 重复数据处理选项 -->
+          <div v-if="(validationResult?.duplicateInDb || 0) > 0" class="duplicate-options" style="margin-top: 16px">
+            <a-alert type="info" show-icon>
+              <template #message>
+                <div>
+                  <strong>重复数据说明：</strong>
+                  <ul style="margin: 8px 0 0 0; padding-left: 20px">
+                    <li v-if="(validationResult?.duplicateInFile || 0) > 0">
+                      文件内重复 {{ validationResult?.duplicateInFile }} 条：同一文件中姓名+邮箱+国家相同，将<strong>跳过</strong>后面重复的行
+                    </li>
+                    <li>
+                      数据库重复 {{ validationResult?.duplicateInDb }} 条：与数据库中已有客户相同
+                    </li>
+                  </ul>
+                  <div style="margin-top: 12px">
+                    <strong>重复数据处理方式：</strong>
+                    <a-radio-group v-model:value="duplicateAction" style="margin-left: 8px">
+                      <a-radio value="skip">跳过（仅导入新数据）</a-radio>
+                      <a-radio value="update">更新（覆盖已有客户信息）</a-radio>
+                    </a-radio-group>
+                  </div>
+                </div>
+              </template>
+            </a-alert>
+          </div>
+          
+          <!-- 无重复数据时的说明 -->
           <a-alert 
-            v-if="(validationResult?.duplicateRows || 0) > 0" 
+            v-else-if="(validationResult?.duplicateInFile || 0) > 0" 
             type="info" 
             show-icon
             style="margin-top: 16px"
@@ -177,14 +203,8 @@
               <div>
                 <strong>重复数据说明：</strong>
                 <ul style="margin: 8px 0 0 0; padding-left: 20px">
-                  <li v-if="(validationResult?.duplicateInFile || 0) > 0">
+                  <li>
                     文件内重复 {{ validationResult?.duplicateInFile }} 条：同一文件中姓名+邮箱+国家相同，将<strong>跳过</strong>后面重复的行
-                  </li>
-                  <li v-if="(validationResult?.duplicateInDb || 0) > 0">
-                    数据库重复 {{ validationResult?.duplicateInDb }} 条：与数据库中已有客户姓名+邮箱+国家相同，
-                    <strong v-if="importMode === 'overwrite'">将覆盖更新</strong>
-                    <strong v-else-if="importMode === 'merge'">将合并更新（仅更新非空字段）</strong>
-                    <strong v-else>将作为新客户追加</strong>
                   </li>
                 </ul>
               </div>
@@ -192,7 +212,24 @@
           </a-alert>
         </div>
 
-        <div v-if="validationResult?.errors?.length" class="error-list">
+        <!-- 可导入数据预览 -->
+        <div v-if="previewData.length > 0" class="preview-list" style="margin-top: 16px">
+          <h4>
+            {{ duplicateAction === 'skip' ? '新数据预览' : '可导入数据预览' }}
+            <span style="font-weight: normal; color: #999; font-size: 12px">
+              （显示前 {{ previewData.length }} 条）
+            </span>
+          </h4>
+          <a-table
+            :data-source="previewData"
+            :columns="previewColumns"
+            :pagination="false"
+            size="small"
+            :scroll="{ x: 800 }"
+          />
+        </div>
+
+        <div v-if="validationResult?.errors?.length" class="error-list" style="margin-top: 16px">
           <h4>
             错误详情
             <a-button type="link" size="small" @click="downloadErrors">下载错误报告</a-button>
@@ -212,11 +249,11 @@
           <a-button @click="currentStep = 1">上一步</a-button>
           <a-button
             type="primary"
-            :disabled="validationResult?.validRows === 0"
+            :disabled="importCount === 0"
             :loading="importing"
             @click="executeImport"
           >
-            开始导入 ({{ validationResult?.validRows || 0 }} 条)
+            开始导入 ({{ importCount }} 条)
           </a-button>
         </div>
       </div>
@@ -270,7 +307,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { message } from 'ant-design-vue'
 import { DownloadOutlined, FileExcelOutlined, QuestionCircleOutlined } from '@ant-design/icons-vue'
 import { customerApi } from '@/api/customer'
@@ -287,7 +324,8 @@ const importId = ref('')
 const importResult = ref<ImportResult | null>(null)
 const validationResult = ref<ImportValidation | null>(null)
 const importStatus = ref<ImportStatus | null>(null)
-const importMode = ref('append')
+const importMode = ref('overwrite')
+const duplicateAction = ref<'update' | 'skip'>('skip') // 重复数据处理：update=更新, skip=跳过
 
 // 字段映射数据
 const mappingData = ref<Array<{
@@ -329,6 +367,42 @@ const errorColumns = [
   { title: '错误值', dataIndex: 'value', key: 'value', width: 150 },
   { title: '错误信息', dataIndex: 'message', key: 'message' }
 ]
+
+// 预览表格列
+const previewColumns = [
+  { title: '行号', dataIndex: 'rowNum', key: 'rowNum', width: 70 },
+  { title: '姓名', dataIndex: 'name', key: 'name', width: 120 },
+  { title: '邮箱', dataIndex: 'email', key: 'email', width: 180 },
+  { title: '手机号', dataIndex: 'phone', key: 'phone', width: 120 },
+  { title: '公司', dataIndex: 'company', key: 'company', width: 150 },
+  { title: '国家', dataIndex: 'country', key: 'country', width: 80 }
+]
+
+// 预览数据（根据选择显示新数据或全部数据）
+const previewData = computed(() => {
+  if (!validationResult.value) return []
+  if (duplicateAction.value === 'skip') {
+    // 跳过模式：只显示新数据
+    return validationResult.value.newDataPreview || []
+  } else {
+    // 更新模式：显示新数据 + 重复数据
+    const newData = validationResult.value.newDataPreview || []
+    const dupData = validationResult.value.duplicateDataPreview || []
+    return [...newData, ...dupData].slice(0, 20)
+  }
+})
+
+// 计算实际导入数量
+const importCount = computed(() => {
+  if (!validationResult.value) return 0
+  const validRows = validationResult.value.validRows || 0
+  const duplicateRows = validationResult.value.duplicateRows || 0
+  // 如果选择跳过重复数据，则减去重复数量（duplicateRows是有效数据中的重复数）
+  if (duplicateAction.value === 'skip') {
+    return Math.max(0, validRows - duplicateRows)
+  }
+  return validRows
+})
 
 // 格式化文件大小
 const formatFileSize = (bytes: number) => {
@@ -528,7 +602,7 @@ const executeImport = async () => {
   try {
     const res = await customerApi.executeImport(importId.value, {
       importMode: importMode.value,
-      duplicateAction: 'skip'
+      duplicateAction: duplicateAction.value
     })
     
     // 同步执行完成，直接使用返回的状态

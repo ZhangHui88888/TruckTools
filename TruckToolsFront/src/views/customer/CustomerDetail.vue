@@ -120,6 +120,21 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 名片 -->
+              <div v-if="customer.businessCardFront || customer.businessCardBack" class="business-card-section">
+                <h4>名片</h4>
+                <div class="business-card-grid">
+                  <div v-if="customer.businessCardFront" class="card-item" @click="previewImage(customer.businessCardFront)">
+                    <img :src="customer.businessCardFront" alt="名片正面" />
+                    <span>正面</span>
+                  </div>
+                  <div v-if="customer.businessCardBack" class="card-item" @click="previewImage(customer.businessCardBack)">
+                    <img :src="customer.businessCardBack" alt="名片背面" />
+                    <span>背面</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- 备注信息 -->
@@ -272,6 +287,19 @@
         </a-form-item>
       </a-form>
     </a-modal>
+
+    <!-- 图片预览弹窗 -->
+    <a-modal
+      v-model:open="imagePreviewVisible"
+      :footer="null"
+      width="auto"
+      title="名片预览"
+      centered
+    >
+      <div class="image-preview-container">
+        <img :src="previewImageUrl" alt="名片预览" />
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -302,6 +330,15 @@ const router = useRouter()
 const loading = ref(false)
 const customer = ref<Customer | null>(null)
 const showEditModal = ref(false)
+
+// 图片预览
+const imagePreviewVisible = ref(false)
+const previewImageUrl = ref('')
+
+const previewImage = (url: string) => {
+  previewImageUrl.value = url
+  imagePreviewVisible.value = true
+}
 
 // 事件相关
 const events = ref<CustomerEvent[]>([])
@@ -346,15 +383,17 @@ const emailStatusMap: Record<number, { status: string; text: string }> = {
 }
 
 const priorityLabels: Record<number, string> = {
-  1: '高优先级',
-  2: '中优先级',
-  3: '低优先级'
+  0: 'T0',
+  1: 'T1',
+  2: 'T2',
+  3: 'T3'
 }
 
 const priorityColors: Record<number, string> = {
-  1: 'red',
-  2: 'orange',
-  3: 'blue'
+  0: 'red',
+  1: 'orange',
+  2: 'blue',
+  3: 'default'
 }
 
 // 跟进状态
@@ -645,15 +684,13 @@ onMounted(() => {
     }
     
     .qrcode-section {
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid #e5e7eb;
+      margin-top: 24px;
       
       h4 {
         font-size: 14px;
         font-weight: 500;
         color: #374151;
-        margin: 0 0 12px;
+        margin-bottom: 12px;
       }
       
       .qrcode-grid {
@@ -666,6 +703,47 @@ onMounted(() => {
           img {
             width: 100px;
             height: 100px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+          }
+          
+          span {
+            display: block;
+            margin-top: 8px;
+            font-size: 13px;
+            color: #6b7280;
+          }
+        }
+      }
+    }
+    
+    .business-card-section {
+      margin-top: 24px;
+      
+      h4 {
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 12px;
+      }
+      
+      .business-card-grid {
+        display: flex;
+        gap: 24px;
+        
+        .card-item {
+          text-align: center;
+          cursor: pointer;
+          transition: transform 0.2s;
+          
+          &:hover {
+            transform: scale(1.02);
+          }
+          
+          img {
+            width: 200px;
+            height: 120px;
+            object-fit: cover;
             border-radius: 8px;
             border: 1px solid #e5e7eb;
           }
@@ -755,6 +833,20 @@ onMounted(() => {
         white-space: pre-wrap;
       }
     }
+  }
+}
+
+.image-preview-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 90vw;
+  max-height: 80vh;
+  
+  img {
+    max-width: 100%;
+    max-height: 80vh;
+    object-fit: contain;
   }
 }
 </style>
