@@ -1,6 +1,7 @@
 package com.trucktools.customer.service.impl;
 
 import cn.hutool.core.util.IdUtil;
+import cn.hutool.core.util.StrUtil;
 import com.trucktools.common.core.domain.ResultCode;
 import com.trucktools.common.exception.BusinessException;
 import com.trucktools.customer.dto.CustomerEventRequest;
@@ -60,6 +61,26 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
         event.setEventLocation(request.getEventLocation());
         event.setEventContent(request.getEventContent());
         event.setEventStatus(request.getEventStatus());
+        
+        // 设置事件类型
+        String eventType = StrUtil.isBlank(request.getEventType()) ? "normal" : request.getEventType();
+        event.setEventType(eventType);
+        
+        // 如果是提醒事件，设置提醒时间
+        if ("reminder".equals(eventType)) {
+            if (StrUtil.isBlank(request.getReminderTime())) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "提醒事件必须设置提醒时间");
+            }
+            try {
+                LocalDate reminderDate = LocalDate.parse(request.getReminderTime(), FORMATTER);
+                event.setReminderTime(reminderDate.atStartOfDay());
+            } catch (Exception e) {
+                throw new BusinessException(ResultCode.PARAM_ERROR, "提醒时间格式错误，应为：yyyy-MM-dd");
+            }
+            event.setReminderTriggered(0);
+        }
+        
+        event.setIsSystemGenerated(0);
 
         eventMapper.insert(event);
 
@@ -128,6 +149,7 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public List<CustomerEventVO> listByCustomerId(Long userId, Long customerId) {
 
         // 检查客户是否存在
@@ -135,6 +157,9 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
         if (customer == null || !customer.getUserId().equals(userId)) {
             throw new BusinessException(ResultCode.CUSTOMER_NOT_FOUND);
         }
+
+        // 检查并触发到期的提醒事件
+        triggerDueReminders(userId, customerId);
 
         List<CustomerEvent> events = eventMapper.selectByCustomerId(customerId);
         return events.stream()
@@ -174,6 +199,43 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
     }
 
     /**
+     * 检查并触发到期的提醒事件
+     * 当提醒时间到达时，生成一条新的普通事件作为提醒
+     */
+    private void triggerDueReminders(Long userId, Long customerId) {
+        LocalDateTime now = LocalDateTime.now();
+        List<CustomerEvent> dueReminders = eventMapper.selectDueReminders(customerId, now);
+        
+        for (CustomerEvent reminder : dueReminders) {
+            // 创建一条新的提醒触发事件
+            CustomerEvent triggeredEvent = new CustomerEvent();
+            triggeredEvent.setId(IdUtil.getSnowflakeNextId());
+            triggeredEvent.setUserId(userId);
+            triggeredEvent.setCustomerId(customerId);
+            triggeredEvent.setEventTime(now);
+            triggeredEvent.setEventLocation(reminder.getEventLocation());
+            triggeredEvent.setEventContent("[提醒触发] " + reminder.getEventContent());
+            triggeredEvent.setEventStatus("pending_us"); // 提醒触发后默认等待我们处理
+            triggeredEvent.setEventType("normal");
+            triggeredEvent.setIsSystemGenerated(1);
+            triggeredEvent.setParentEventId(reminder.getId());
+            
+            eventMapper.insert(triggeredEvent);
+            
+            // 标记原提醒事件为已触发
+            eventMapper.markReminderTriggered(reminder.getId());
+            
+            log.info("提醒事件已触发: reminderId={}, triggeredEventId={}, customerId={}", 
+                    reminder.getId(), triggeredEvent.getId(), customerId);
+        }
+        
+        // 如果有提醒被触发，更新客户跟进状态
+        if (!dueReminders.isEmpty()) {
+            updateCustomerFollowUpStatus(customerId);
+        }
+    }
+
+    /**
      * 转换为VO
      */
     private CustomerEventVO convertToVO(CustomerEvent event) {
@@ -184,6 +246,10 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
         vo.setEventLocation(event.getEventLocation());
         vo.setEventContent(event.getEventContent());
         vo.setEventStatus(event.getEventStatus());
+        vo.setEventType(event.getEventType());
+        vo.setReminderTime(event.getReminderTime());
+        vo.setReminderTriggered(event.getReminderTriggered() != null && event.getReminderTriggered() == 1);
+        vo.setIsSystemGenerated(event.getIsSystemGenerated() != null && event.getIsSystemGenerated() == 1);
         vo.setCreatedAt(event.getCreatedAt());
         vo.setUpdatedAt(event.getUpdatedAt());
         return vo;

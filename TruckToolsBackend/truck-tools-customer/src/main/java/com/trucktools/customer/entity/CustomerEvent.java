@@ -35,6 +35,15 @@ public class CustomerEvent extends BaseEntity {
     @Schema(description = "事件进度状态: pending_customer=等待客户回复, pending_us=等待我们回复")
     private String eventStatus;
 
+    @Schema(description = "事件类型: normal=普通事件, reminder=提醒事件")
+    private String eventType;
+
+    @Schema(description = "提醒时间（仅提醒事件有效）")
+    private LocalDateTime reminderTime;
+
+    @Schema(description = "提醒是否已触发: 0=未触发, 1=已触发")
+    private Integer reminderTriggered;
+
     @Schema(description = "是否系统自动生成: 0=否, 1=是")
     private Integer isSystemGenerated;
 

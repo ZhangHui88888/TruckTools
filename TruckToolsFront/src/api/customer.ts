@@ -110,7 +110,11 @@ export interface CustomerEvent {
   eventTime: string
   eventLocation?: string
   eventContent: string
-  eventStatus: 'pending_customer' | 'pending_us'
+  eventStatus: 'pending_customer' | 'pending_us' | 'completed'
+  eventType?: 'normal' | 'reminder'
+  reminderTime?: string
+  reminderTriggered?: boolean
+  isSystemGenerated?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -120,7 +124,9 @@ export interface CustomerEventRequest {
   eventTime: string
   eventLocation?: string
   eventContent: string
-  eventStatus: 'pending_customer' | 'pending_us'
+  eventStatus: 'pending_customer' | 'pending_us' | 'completed'
+  eventType?: 'normal' | 'reminder'
+  reminderTime?: string
 }
 
 export const customerApi = {

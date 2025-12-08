@@ -30,6 +30,18 @@ public class CustomerEventVO {
     @Schema(description = "事件进度状态: pending_customer=等待客户回复, pending_us=等待我们回复")
     private String eventStatus;
 
+    @Schema(description = "事件类型: normal=普通事件, reminder=提醒事件")
+    private String eventType;
+
+    @Schema(description = "提醒时间")
+    private LocalDateTime reminderTime;
+
+    @Schema(description = "提醒是否已触发")
+    private Boolean reminderTriggered;
+
+    @Schema(description = "是否系统自动生成")
+    private Boolean isSystemGenerated;
+
     @Schema(description = "创建时间")
     private LocalDateTime createdAt;
 

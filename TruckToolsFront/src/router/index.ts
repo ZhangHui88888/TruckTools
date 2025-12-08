@@ -54,6 +54,12 @@ const routes: RouteRecordRaw[] = [
             meta: { title: 'Excel导入', released: true }
           },
           {
+            path: 'script-template',
+            name: 'ScriptTemplate',
+            component: () => import('@/views/customer/ScriptTemplate.vue'),
+            meta: { title: '话术模板', released: true }
+          },
+          {
             path: ':id',
             name: 'CustomerDetail',
             component: () => import('@/views/customer/CustomerDetail.vue'),

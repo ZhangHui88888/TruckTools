@@ -31,5 +31,11 @@ public class CustomerEventRequest {
     @Schema(description = "事件进度状态: pending_customer=等待客户回复, pending_us=等待我们回复")
     @NotBlank(message = "事件状态不能为空")
     private String eventStatus;
+
+    @Schema(description = "事件类型: normal=普通事件, reminder=提醒事件")
+    private String eventType;
+
+    @Schema(description = "提醒时间（格式：YYYY-MM-DD，仅提醒事件需要）")
+    private String reminderTime;
 }
 

@@ -5,7 +5,9 @@ import com.trucktools.customer.entity.CustomerEvent;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -27,15 +29,17 @@ public interface CustomerEventMapper extends BaseMapper<CustomerEvent> {
     CustomerEvent selectLatestByCustomerId(@Param("customerId") Long customerId);
 
     /**
-     * 查询用户所有客户的最新事件（每个客户只返回一条）
-     * 兼容MySQL 5.7及以下版本
+     * 查询用户所有客户的最新未完结事件（每个客户只返回一条）
+     * 只返回未完结(pending_customer, pending_us)的最新事件
+     * 如果客户所有事件都已完结，则不返回该客户
      */
     @Select("""
         SELECT e.* FROM t_customer_event e
         INNER JOIN (
             SELECT customer_id, MAX(CONCAT(event_time, '_', LPAD(id, 20, '0'))) as max_key
             FROM t_customer_event
-            WHERE user_id = #{userId} AND deleted = 0
+            WHERE user_id = #{userId} AND deleted = 0 
+            AND (event_status = 'pending_customer' OR event_status = 'pending_us')
             GROUP BY customer_id
         ) latest ON e.customer_id = latest.customer_id 
             AND CONCAT(e.event_time, '_', LPAD(e.id, 20, '0')) = latest.max_key
@@ -43,4 +47,23 @@ public interface CustomerEventMapper extends BaseMapper<CustomerEvent> {
         ORDER BY e.event_status ASC, e.event_time DESC
         """)
     List<CustomerEvent> selectLatestEventsPerCustomer(@Param("userId") Long userId);
+
+    /**
+     * 查询客户的到期未触发的提醒事件
+     */
+    @Select("""
+        SELECT * FROM t_customer_event 
+        WHERE customer_id = #{customerId} 
+        AND deleted = 0 
+        AND event_type = 'reminder' 
+        AND reminder_triggered = 0 
+        AND reminder_time <= #{now}
+        """)
+    List<CustomerEvent> selectDueReminders(@Param("customerId") Long customerId, @Param("now") LocalDateTime now);
+
+    /**
+     * 标记提醒事件为已触发
+     */
+    @Update("UPDATE t_customer_event SET reminder_triggered = 1 WHERE id = #{id}")
+    int markReminderTriggered(@Param("id") Long id);
 }

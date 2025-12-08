@@ -190,8 +190,12 @@ public class CustomerServiceImpl implements CustomerService {
             throw new BusinessException(ResultCode.CUSTOMER_NOT_FOUND);
         }
         
+        // 删除客户相关的事件
+        customerEventMapper.delete(new LambdaQueryWrapper<CustomerEvent>()
+                .eq(CustomerEvent::getCustomerId, customerId));
+        
         customerMapper.deleteById(customerId);
-        log.info("删除客户: customerId={}", customerId);
+        log.info("删除客户及相关事件: customerId={}", customerId);
     }
 
     @Override
@@ -201,10 +205,14 @@ public class CustomerServiceImpl implements CustomerService {
             return;
         }
         
+        // 删除客户相关的事件
+        customerEventMapper.delete(new LambdaQueryWrapper<CustomerEvent>()
+                .in(CustomerEvent::getCustomerId, customerIds));
+        
         customerMapper.delete(new LambdaQueryWrapper<Customer>()
                 .eq(Customer::getUserId, userId)
                 .in(Customer::getId, customerIds));
-        log.info("批量删除客户: userId={}, count={}", userId, customerIds.size());
+        log.info("批量删除客户及相关事件: userId={}, count={}", userId, customerIds.size());
     }
 
     @Override

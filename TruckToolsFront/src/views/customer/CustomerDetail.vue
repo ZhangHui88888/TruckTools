@@ -172,18 +172,35 @@
                   <a-timeline-item
                     v-for="event in events"
                     :key="event.id"
-                    :color="eventStatusColors[event.eventStatus]"
+                    :color="getEventTimelineColor(event)"
                   >
-                    <div class="event-item">
+                    <template #dot v-if="event.eventType === 'reminder'">
+                      <BellOutlined style="font-size: 16px" />
+                    </template>
+                    <div class="event-item" :class="{ 'reminder-event': event.eventType === 'reminder', 'system-event': event.isSystemGenerated }">
                       <div class="event-header">
                         <div class="event-time">
                           <ClockCircleOutlined />
                           {{ dayjs(event.eventTime).format('YYYY-MM-DD') }}
+                          <a-tag v-if="event.eventType === 'reminder'" color="purple" size="small" style="margin-left: 8px">
+                            <BellOutlined /> 提醒
+                          </a-tag>
+                          <a-tag v-if="event.isSystemGenerated" color="cyan" size="small" style="margin-left: 4px">
+                            系统生成
+                          </a-tag>
                         </div>
                         <div class="event-actions">
                           <a-tag :color="eventStatusTagColors[event.eventStatus]">
                             {{ eventStatusLabels[event.eventStatus] }}
                           </a-tag>
+                          <a-button 
+                            v-if="event.eventStatus !== 'completed'" 
+                            type="link" 
+                            size="small" 
+                            @click="handleCompleteEvent(event)"
+                          >
+                            完结
+                          </a-button>
                           <a-button type="link" size="small" @click="handleEditEvent(event)">
                             编辑
                           </a-button>
@@ -199,6 +216,13 @@
                         {{ event.eventLocation }}
                       </div>
                       <div class="event-content">{{ event.eventContent }}</div>
+                      <!-- 提醒事件显示提醒时间 -->
+                      <div v-if="event.eventType === 'reminder' && event.reminderTime" class="event-reminder-info">
+                        <BellOutlined />
+                        提醒时间: {{ dayjs(event.reminderTime).format('YYYY-MM-DD') }}
+                        <a-tag v-if="event.reminderTriggered" color="green" size="small">已触发</a-tag>
+                        <a-tag v-else color="blue" size="small">待触发</a-tag>
+                      </div>
                     </div>
                   </a-timeline-item>
                 </a-timeline>
@@ -223,6 +247,44 @@
                   <div class="stat-label">最后发送时间</div>
                 </div>
               </div>
+            </div>
+
+            <!-- 话术营销 -->
+            <div class="info-section content-card">
+              <div class="section-header">
+                <h3>话术营销</h3>
+                <a-button type="link" size="small" @click="$router.push('/customer/script-template')">
+                  管理模板
+                </a-button>
+              </div>
+              <a-spin :spinning="scriptsLoading">
+                <a-empty v-if="generatedScripts.length === 0" description="暂无话术模板">
+                  <template #extra>
+                    <a-button type="primary" @click="$router.push('/customer/script-template')">
+                      去创建模板
+                    </a-button>
+                  </template>
+                </a-empty>
+                <div v-else class="scripts-list">
+                  <div 
+                    v-for="script in generatedScripts" 
+                    :key="script.templateId"
+                    class="script-item"
+                  >
+                    <div class="script-header">
+                      <span class="script-name">{{ script.templateName }}</span>
+                      <a-button 
+                        type="primary" 
+                        size="small" 
+                        @click="copyScript(script.generatedContent)"
+                      >
+                        <CopyOutlined /> 复制
+                      </a-button>
+                    </div>
+                    <div class="script-content">{{ script.generatedContent }}</div>
+                  </div>
+                </div>
+              </a-spin>
             </div>
 
             <!-- 名片原图 -->
@@ -283,7 +345,27 @@
           <a-radio-group v-model:value="eventForm.eventStatus">
             <a-radio value="pending_customer">等待客户回复</a-radio>
             <a-radio value="pending_us">等待我们回复</a-radio>
+            <a-radio value="completed">已完结</a-radio>
           </a-radio-group>
+        </a-form-item>
+        <a-form-item label="事件类型" name="eventType">
+          <a-radio-group v-model:value="eventForm.eventType">
+            <a-radio value="normal">普通事件</a-radio>
+            <a-radio value="reminder">提醒事件</a-radio>
+          </a-radio-group>
+        </a-form-item>
+        <a-form-item 
+          v-if="eventForm.eventType === 'reminder'" 
+          label="提醒时间" 
+          name="reminderTime"
+          :rules="[{ required: eventForm.eventType === 'reminder', message: '请选择提醒时间' }]"
+        >
+          <a-date-picker
+            v-model:value="eventForm.reminderTime"
+            format="YYYY-MM-DD"
+            placeholder="选择提醒日期（到期后会生成新事件提醒您）"
+            style="width: 100%"
+          />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -317,10 +399,14 @@ import {
   LinkOutlined,
   PlusOutlined,
   ClockCircleOutlined,
-  EnvironmentOutlined
+  EnvironmentOutlined,
+  BellOutlined,
+  CopyOutlined
 } from '@ant-design/icons-vue'
 import { customerApi } from '@/api/customer'
 import type { Customer, CustomerEvent, CustomerEventRequest } from '@/api/customer'
+import { scriptTemplateApi } from '@/api/scriptTemplate'
+import type { GeneratedScript } from '@/api/scriptTemplate'
 import CustomerFormModal from './components/CustomerFormModal.vue'
 import type { Dayjs } from 'dayjs'
 
@@ -340,6 +426,10 @@ const previewImage = (url: string) => {
   imagePreviewVisible.value = true
 }
 
+// 话术相关
+const generatedScripts = ref<GeneratedScript[]>([])
+const scriptsLoading = ref(false)
+
 // 事件相关
 const events = ref<CustomerEvent[]>([])
 const eventsLoading = ref(false)
@@ -350,12 +440,16 @@ const eventForm = ref<{
   eventTime: Dayjs | null
   eventLocation: string
   eventContent: string
-  eventStatus: 'pending_customer' | 'pending_us'
+  eventStatus: 'pending_customer' | 'pending_us' | 'completed'
+  eventType: 'normal' | 'reminder'
+  reminderTime: Dayjs | null
 }>({
   eventTime: null,
   eventLocation: '',
   eventContent: '',
-  eventStatus: 'pending_us'
+  eventStatus: 'pending_us',
+  eventType: 'normal',
+  reminderTime: null
 })
 
 const eventFormRules = {
@@ -412,20 +506,34 @@ const followUpStatusColors: Record<string, { color: string }> = {
 // 事件状态
 const eventStatusLabels: Record<string, string> = {
   pending_customer: '等待客户回复',
-  pending_us: '等待我们回复'
+  pending_us: '等待我们回复',
+  completed: '已完结'
 }
 
 const eventStatusColors: Record<string, string> = {
   pending_customer: 'green',
-  pending_us: 'orange'
+  pending_us: 'orange',
+  completed: 'gray'
 }
 
 const eventStatusTagColors: Record<string, string> = {
   pending_customer: 'success',
-  pending_us: 'warning'
+  pending_us: 'warning',
+  completed: 'default'
 }
 
 const eventFormTitle = computed(() => currentEventId.value ? '编辑事件' : '添加事件')
+
+// 获取事件时间线颜色
+const getEventTimelineColor = (event: CustomerEvent) => {
+  if (event.eventType === 'reminder') {
+    return event.reminderTriggered ? 'gray' : 'purple'
+  }
+  if (event.isSystemGenerated) {
+    return 'cyan'
+  }
+  return eventStatusColors[event.eventStatus] || 'blue'
+}
 
 // 格式化网站URL
 const formatWebsiteUrl = (url: string) => {
@@ -453,8 +561,9 @@ const fetchCustomer = async () => {
     const res = await customerApi.getDetail(id)
     customer.value = res.data
     
-    // 获取事件列表
+    // 获取事件列表和话术
     fetchEvents()
+    fetchScripts()
   } catch {
     message.error('获取客户信息失败')
     router.push('/customer/list')
@@ -474,6 +583,37 @@ const fetchEvents = async () => {
     message.error('获取事件列表失败')
   } finally {
     eventsLoading.value = false
+  }
+}
+
+// 获取话术列表
+const fetchScripts = async () => {
+  if (!customer.value) return
+  scriptsLoading.value = true
+  try {
+    const res = await scriptTemplateApi.generateForCustomer(customer.value.id)
+    generatedScripts.value = res.data
+  } catch {
+    console.error('获取话术失败')
+  } finally {
+    scriptsLoading.value = false
+  }
+}
+
+// 复制话术
+const copyScript = async (content: string) => {
+  try {
+    await navigator.clipboard.writeText(content)
+    message.success('已复制到剪贴板')
+  } catch {
+    // 降级方案
+    const textarea = document.createElement('textarea')
+    textarea.value = content
+    document.body.appendChild(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+    message.success('已复制到剪贴板')
   }
 }
 
@@ -517,7 +657,9 @@ const handleAddEvent = () => {
     eventTime: null,
     eventLocation: '',
     eventContent: '',
-    eventStatus: 'pending_us'
+    eventStatus: 'pending_us',
+    eventType: 'normal',
+    reminderTime: null
   }
   showEventModal.value = true
 }
@@ -529,7 +671,9 @@ const handleEditEvent = (event: CustomerEvent) => {
     eventTime: dayjs(event.eventTime),
     eventLocation: event.eventLocation || '',
     eventContent: event.eventContent,
-    eventStatus: event.eventStatus
+    eventStatus: event.eventStatus,
+    eventType: event.eventType || 'normal',
+    reminderTime: event.reminderTime ? dayjs(event.reminderTime) : null
   }
   showEventModal.value = true
 }
@@ -546,7 +690,11 @@ const handleEventSubmit = async () => {
       eventTime: eventForm.value.eventTime!.format('YYYY-MM-DD'),
       eventLocation: eventForm.value.eventLocation,
       eventContent: eventForm.value.eventContent,
-      eventStatus: eventForm.value.eventStatus
+      eventStatus: eventForm.value.eventStatus,
+      eventType: eventForm.value.eventType,
+      reminderTime: eventForm.value.eventType === 'reminder' && eventForm.value.reminderTime 
+        ? eventForm.value.reminderTime.format('YYYY-MM-DD') 
+        : undefined
     }
     
     if (currentEventId.value) {
@@ -580,6 +728,30 @@ const handleDeleteEvent = async (eventId: string) => {
     fetchCustomer() // 刷新客户信息（跟进状态会更新）
   } catch {
     message.error('删除事件失败')
+  }
+}
+
+// 完结事件
+const handleCompleteEvent = async (event: CustomerEvent) => {
+  if (!customer.value) return
+  
+  try {
+    const data: CustomerEventRequest = {
+      customerId: customer.value.id,
+      eventTime: dayjs(event.eventTime).format('YYYY-MM-DD'),
+      eventLocation: event.eventLocation || '',
+      eventContent: event.eventContent,
+      eventStatus: 'completed',
+      eventType: event.eventType || 'normal',
+      reminderTime: event.reminderTime ? dayjs(event.reminderTime).format('YYYY-MM-DD') : undefined
+    }
+    
+    await customerApi.updateEvent(event.id, data)
+    message.success('事件已完结')
+    fetchEvents()
+    fetchCustomer()
+  } catch {
+    message.error('完结事件失败')
   }
 }
 
@@ -832,6 +1004,31 @@ onMounted(() => {
         line-height: 1.6;
         white-space: pre-wrap;
       }
+      
+      .event-reminder-info {
+        margin-top: 8px;
+        padding: 8px 12px;
+        background: #f5f3ff;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #7c3aed;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      &.reminder-event {
+        border-left: 3px solid #7c3aed;
+        padding-left: 12px;
+        margin-left: -15px;
+      }
+      
+      &.system-event {
+        background: #f0fdfa;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-left: -12px;
+      }
     }
   }
 }
@@ -847,6 +1044,39 @@ onMounted(() => {
     max-width: 100%;
     max-height: 80vh;
     object-fit: contain;
+  }
+}
+
+.scripts-list {
+  .script-item {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+    
+    .script-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      
+      .script-name {
+        font-weight: 500;
+        color: #374151;
+      }
+    }
+    
+    .script-content {
+      font-size: 14px;
+      color: #4b5563;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
   }
 }
 </style>
