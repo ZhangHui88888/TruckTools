@@ -49,22 +49,12 @@ public class WorkbenchServiceImpl implements WorkbenchService {
         LocalDateTime weekStart = now.minusDays(7);
         LocalDateTime overdueThreshold = now.minusDays(OVERDUE_DAYS);
 
-        // 待处理事件数量（等待我方处理）
-        Long pendingCount = customerEventMapper.selectCount(
-                new LambdaQueryWrapper<CustomerEvent>()
-                        .eq(CustomerEvent::getUserId, userId)
-                        .eq(CustomerEvent::getEventStatus, EVENT_STATUS_PENDING_US)
-                        .eq(CustomerEvent::getDeleted, 0)
-        );
+        // 待处理客户数量（有等待我方处理事件的客户数，每个客户只计一次）
+        Long pendingCount = customerEventMapper.countCustomersWithPendingStatus(userId, EVENT_STATUS_PENDING_US);
         stats.setPendingCount(pendingCount.intValue());
 
-        // 等待反馈数量（等待客户反馈）
-        Long waitingCount = customerEventMapper.selectCount(
-                new LambdaQueryWrapper<CustomerEvent>()
-                        .eq(CustomerEvent::getUserId, userId)
-                        .eq(CustomerEvent::getEventStatus, EVENT_STATUS_PENDING_CUSTOMER)
-                        .eq(CustomerEvent::getDeleted, 0)
-        );
+        // 等待反馈客户数量（有等待客户反馈事件的客户数，每个客户只计一次）
+        Long waitingCount = customerEventMapper.countCustomersWithPendingStatus(userId, EVENT_STATUS_PENDING_CUSTOMER);
         stats.setWaitingCount(waitingCount.intValue());
 
         // 今日处理数量（今天状态变为pending_customer的事件）
@@ -311,8 +301,16 @@ public class WorkbenchServiceImpl implements WorkbenchService {
 
             // 获取最后一次事件
             CustomerEvent lastEvent = customerEventMapper.selectLatestByCustomerId(customer.getId());
-            long daysSinceLastEvent = lastEvent != null ? 
-                    ChronoUnit.DAYS.between(lastEvent.getEventTime(), LocalDateTime.now()) : OVERDUE_DAYS;
+            long daysSinceLastEvent = customer.getLastEventTime() != null ? 
+                    ChronoUnit.DAYS.between(customer.getLastEventTime(), LocalDateTime.now()) : OVERDUE_DAYS;
+            
+            // 确保天数至少是OVERDUE_DAYS（因为查询条件已经过滤了超时的客户）
+            if (daysSinceLastEvent < OVERDUE_DAYS) {
+                continue; // 实际未超时，跳过
+            }
+
+            // 先将该客户的所有未完结事件标记为已完结
+            customerEventMapper.completeAllEventsForCustomer(customer.getId());
 
             // 创建超时提醒事件
             CustomerEvent reminderEvent = new CustomerEvent();

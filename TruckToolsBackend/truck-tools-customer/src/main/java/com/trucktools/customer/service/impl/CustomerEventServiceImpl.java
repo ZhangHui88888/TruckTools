@@ -44,16 +44,27 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
             throw new BusinessException(ResultCode.CUSTOMER_NOT_FOUND);
         }
 
+        // 将该客户的所有未完结事件标记为已完结
+        int completedCount = eventMapper.completeAllEventsForCustomer(request.getCustomerId());
+        if (completedCount > 0) {
+            log.info("客户{}的{}条旧事件已自动完结", request.getCustomerId(), completedCount);
+        }
+
         // 创建事件
         CustomerEvent event = new CustomerEvent();
         event.setId(IdUtil.getSnowflakeNextId());
         event.setUserId(userId);
         event.setCustomerId(request.getCustomerId());
         
-        // 解析时间
+        // 解析时间：如果是今天则用当前时间，否则用当天23:59:59
         try {
             LocalDate eventDate = LocalDate.parse(request.getEventTime(), FORMATTER);
-            event.setEventTime(eventDate.atStartOfDay());
+            LocalDate today = LocalDate.now();
+            if (eventDate.equals(today)) {
+                event.setEventTime(LocalDateTime.now());
+            } else {
+                event.setEventTime(eventDate.atTime(23, 59, 59));
+            }
         } catch (Exception e) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "事件时间格式错误，应为：yyyy-MM-dd");
         }
@@ -179,20 +190,22 @@ public class CustomerEventServiceImpl implements com.trucktools.customer.service
     }
 
     /**
-     * 更新客户的跟进状态为最新事件的状态
+     * 更新客户的跟进状态和最后事件时间
      */
     private void updateCustomerFollowUpStatus(Long customerId) {
         // 获取该客户的最新事件
         CustomerEvent latestEvent = eventMapper.selectLatestByCustomerId(customerId);
         
-        // 更新客户的跟进状态
+        // 更新客户的跟进状态和最后事件时间
         Customer customer = customerMapper.selectById(customerId);
         if (customer != null) {
             if (latestEvent != null) {
                 customer.setFollowUpStatus(latestEvent.getEventStatus());
+                customer.setLastEventTime(latestEvent.getEventTime());
             } else {
                 // 如果没有事件了，设置为默认状态
                 customer.setFollowUpStatus("pending_us");
+                customer.setLastEventTime(null);
             }
             customerMapper.updateById(customer);
         }

@@ -323,7 +323,7 @@ const eventsLoading = ref(false)
 const queryParams = reactive<WorkbenchEventQueryParams>({
   page: 1,
   pageSize: 10,
-  eventStatus: 'all',
+  eventStatus: 'pending_us',
   customerKeyword: '',
   overdueOnly: false,
   excludeStoppedFollowUp: true
