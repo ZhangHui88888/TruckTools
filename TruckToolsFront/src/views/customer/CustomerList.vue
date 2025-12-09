@@ -232,6 +232,7 @@ const columns = [
   { title: '客户姓名', key: 'name', dataIndex: 'name', width: 130 },
   { title: '公司', key: 'company', dataIndex: 'company', width: 150, ellipsis: true },
   { title: '国家', key: 'country', dataIndex: 'country', width: 80 },
+  { title: '地址', key: 'address', dataIndex: 'address', width: 150, ellipsis: true },
   { title: '跟进状态', key: 'followUpStatus', dataIndex: 'followUpStatus', width: 100 },
   { title: '最新事件', key: 'latestEvent', dataIndex: 'latestEventContent', width: 250, ellipsis: true },
   { title: '操作', key: 'action', width: 150, fixed: 'right' as const }
@@ -295,7 +296,7 @@ const countries = [
   '日本', '韩国', '印度', '新加坡', '马来西亚', '泰国', '越南', '印度尼西亚', '菲律宾',
   '巴基斯坦', '孟加拉国', '斯里兰卡', '缅甸', '柬埔寨', '老挝', '文莱', '蒙古',
   // 中东地区
-  '阿联酋', '沙特阿拉伯', '以色列', '土耳其', '伊朗', '伊拉克', '约旦', '科威特',
+  '阿联酋', '迪拜', '沙特阿拉伯', '以色列', '土耳其', '伊朗', '伊拉克', '约旦', '科威特',
   '卡塔尔', '阿曼', '巴林', '黎巴嫩', '叙利亚', '也门',
   // 欧洲主要国家
   '德国', '英国', '法国', '意大利', '西班牙', '荷兰', '比利时', '瑞士', '瑞典',

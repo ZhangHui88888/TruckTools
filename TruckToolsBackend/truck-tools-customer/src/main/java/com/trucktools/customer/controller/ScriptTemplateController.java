@@ -49,13 +49,6 @@ public class ScriptTemplateController {
         return Result.success();
     }
 
-    @Operation(summary = "获取话术模板详情")
-    @GetMapping("/{id}")
-    public Result<ScriptTemplateVO> getDetail(@PathVariable("id") Long templateId) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        return Result.success(templateService.getDetail(userId, templateId));
-    }
-
     @Operation(summary = "获取话术模板列表")
     @GetMapping
     public Result<List<ScriptTemplateVO>> list() {
@@ -68,6 +61,13 @@ public class ScriptTemplateController {
     public Result<List<GeneratedScriptVO>> generateForCustomer(@PathVariable("customerId") Long customerId) {
         Long userId = SecurityUtils.getCurrentUserId();
         return Result.success(templateService.generateScriptsForCustomer(userId, customerId));
+    }
+
+    @Operation(summary = "获取话术模板详情")
+    @GetMapping("/{id}")
+    public Result<ScriptTemplateVO> getDetail(@PathVariable("id") Long templateId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        return Result.success(templateService.getDetail(userId, templateId));
     }
 
     @Operation(summary = "获取支持的变量列表")
