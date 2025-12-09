@@ -2,6 +2,7 @@ package com.trucktools.customer.service;
 
 import com.trucktools.common.core.domain.PageResult;
 import com.trucktools.customer.dto.*;
+import jakarta.servlet.http.HttpServletResponse;
 
 /**
  * 工作台服务接口
@@ -37,4 +38,9 @@ public interface WorkbenchService {
      * 检查并创建超时提醒事件（定时任务调用）
      */
     int checkAndCreateOverdueReminders();
+
+    /**
+     * 导出待处理事件列表
+     */
+    void exportEvents(Long userId, WorkbenchEventQueryRequest request, HttpServletResponse response);
 }

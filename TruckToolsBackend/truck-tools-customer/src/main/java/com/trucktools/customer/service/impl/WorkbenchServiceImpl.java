@@ -1,7 +1,6 @@
 package com.trucktools.customer.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trucktools.common.core.domain.PageResult;
@@ -13,13 +12,20 @@ import com.trucktools.customer.entity.CustomerEvent;
 import com.trucktools.customer.mapper.CustomerEventMapper;
 import com.trucktools.customer.mapper.CustomerMapper;
 import com.trucktools.customer.service.WorkbenchService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -384,6 +390,9 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             vo.setCustomerName(customer.getName());
             vo.setCustomerCompany(customer.getCompany());
             vo.setCustomerPriority(customer.getPriority());
+            vo.setCustomerRemark(customer.getRemark());
+            vo.setCustomerEmail(customer.getEmail());
+            vo.setCustomerPhone(customer.getPhone());
         }
 
         return vo;
@@ -416,5 +425,164 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             return content;
         }
         return content.substring(0, maxLength) + "...";
+    }
+
+    @Override
+    public void exportEvents(Long userId, WorkbenchEventQueryRequest request, HttpServletResponse response) {
+        // 获取所有数据（不分页）
+        request.setPage(1);
+        request.setPageSize(9999);
+        PageResult<WorkbenchEventVO> result = getEventList(userId, request);
+        List<WorkbenchEventVO> events = result.getList();
+
+        try {
+            // 创建工作簿
+            Workbook workbook = new XSSFWorkbook();
+            Sheet sheet = workbook.createSheet("待处理事件");
+
+            // 设置列宽
+            sheet.setColumnWidth(0, 2000);   // 序号
+            sheet.setColumnWidth(1, 5000);   // 客户姓名
+            sheet.setColumnWidth(2, 6000);   // 公司
+            sheet.setColumnWidth(3, 3000);   // 优先级
+            sheet.setColumnWidth(4, 15000);  // 事件内容
+            sheet.setColumnWidth(5, 12000);  // 客户备注
+
+            // 创建样式
+            CellStyle headerStyle = createHeaderStyle(workbook);
+            CellStyle dataStyle = createDataStyle(workbook);
+
+            int rowNum = 0;
+
+            // 表头行
+            Row headerRow = sheet.createRow(rowNum++);
+            headerRow.setHeightInPoints(25);
+            String[] headers = {"序号", "客户姓名", "公司", "优先级", "事件内容", "客户备注"};
+            for (int i = 0; i < headers.length; i++) {
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(headers[i]);
+                cell.setCellStyle(headerStyle);
+            }
+
+            // 数据行
+            int no = 1;
+            for (WorkbenchEventVO event : events) {
+                Row dataRow = sheet.createRow(rowNum++);
+                dataRow.setHeightInPoints(30);
+
+                // 序号
+                Cell noCell = dataRow.createCell(0);
+                noCell.setCellValue(no++);
+                noCell.setCellStyle(dataStyle);
+
+                // 客户姓名
+                Cell nameCell = dataRow.createCell(1);
+                nameCell.setCellValue(event.getCustomerName() != null ? event.getCustomerName() : "");
+                nameCell.setCellStyle(dataStyle);
+
+                // 公司
+                Cell companyCell = dataRow.createCell(2);
+                companyCell.setCellValue(event.getCustomerCompany() != null ? event.getCustomerCompany() : "");
+                companyCell.setCellStyle(dataStyle);
+
+                // 优先级
+                Cell priorityCell = dataRow.createCell(3);
+                String priorityText = getPriorityText(event.getCustomerPriority());
+                priorityCell.setCellValue(priorityText);
+                priorityCell.setCellStyle(dataStyle);
+
+                // 事件内容
+                Cell contentCell = dataRow.createCell(4);
+                contentCell.setCellValue(event.getEventContent() != null ? event.getEventContent() : "");
+                contentCell.setCellStyle(dataStyle);
+
+                // 客户备注
+                Cell remarkCell = dataRow.createCell(5);
+                remarkCell.setCellValue(event.getCustomerRemark() != null ? event.getCustomerRemark() : "");
+                remarkCell.setCellStyle(dataStyle);
+            }
+
+            // 设置响应头
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            String dateStr = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String statusText = getStatusText(request.getEventStatus());
+            String fileName = URLEncoder.encode("待处理事件_" + statusText + "_" + dateStr + ".xlsx", StandardCharsets.UTF_8);
+            response.setHeader("Content-Disposition", "attachment; filename=" + fileName);
+
+            // 输出文件
+            workbook.write(response.getOutputStream());
+            workbook.close();
+
+        } catch (Exception e) {
+            log.error("导出事件列表失败", e);
+            throw new BusinessException("导出失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 创建表头样式 - 蓝色背景、白色加粗字体、居中
+     */
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setBold(true);
+        font.setFontHeightInPoints((short) 11);
+        font.setFontName("微软雅黑");
+        font.setColor(IndexedColors.WHITE.getIndex());
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.CENTER);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return style;
+    }
+
+    /**
+     * 创建数据样式 - 靠左对齐、有边框
+     */
+    private CellStyle createDataStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont();
+        font.setFontHeightInPoints((short) 10);
+        font.setFontName("微软雅黑");
+        style.setFont(font);
+        style.setAlignment(HorizontalAlignment.LEFT);
+        style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN);
+        style.setBorderTop(BorderStyle.THIN);
+        style.setBorderLeft(BorderStyle.THIN);
+        style.setBorderRight(BorderStyle.THIN);
+        style.setWrapText(true);
+        return style;
+    }
+
+    /**
+     * 获取优先级文本
+     */
+    private String getPriorityText(Integer priority) {
+        if (priority == null) return "T2";
+        return switch (priority) {
+            case 0 -> "T0-最高";
+            case 1 -> "T1-高";
+            case 2 -> "T2-中";
+            case 3 -> "T3-低";
+            default -> "T" + priority;
+        };
+    }
+
+    /**
+     * 获取状态文本
+     */
+    private String getStatusText(String status) {
+        if (status == null) return "全部";
+        return switch (status) {
+            case "pending_us" -> "等待我方处理";
+            case "pending_customer" -> "等待客户反馈";
+            default -> "全部";
+        };
     }
 }

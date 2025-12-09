@@ -7,6 +7,7 @@ import com.trucktools.customer.dto.*;
 import com.trucktools.customer.service.WorkbenchService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -66,5 +67,12 @@ public class WorkbenchController {
     public Result<Integer> checkOverdue() {
         int count = workbenchService.checkAndCreateOverdueReminders();
         return Result.success(count);
+    }
+
+    @Operation(summary = "导出待处理事件列表")
+    @GetMapping("/events/export")
+    public void exportEvents(WorkbenchEventQueryRequest request, HttpServletResponse response) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        workbenchService.exportEvents(userId, request, response);
     }
 }

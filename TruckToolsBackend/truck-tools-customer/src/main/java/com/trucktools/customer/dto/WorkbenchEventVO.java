@@ -32,6 +32,15 @@ public class WorkbenchEventVO {
     @Schema(description = "客户优先级")
     private Integer customerPriority;
 
+    @Schema(description = "客户备注")
+    private String customerRemark;
+
+    @Schema(description = "客户邮箱")
+    private String customerEmail;
+
+    @Schema(description = "客户电话")
+    private String customerPhone;
+
     @Schema(description = "事件时间")
     private LocalDateTime eventTime;
 

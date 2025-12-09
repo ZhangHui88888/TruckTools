@@ -154,6 +154,9 @@
             <a-checkbox v-model:checked="queryParams.overdueOnly" @change="fetchEventList">
               仅显示超时
             </a-checkbox>
+            <a-button type="primary" ghost @click="exportEventList" :loading="exportLoading">
+              <DownloadOutlined /> 导出
+            </a-button>
           </a-space>
         </div>
       </template>
@@ -297,7 +300,8 @@ import {
   DollarOutlined,
   UnorderedListOutlined,
   CheckOutlined,
-  EyeOutlined
+  EyeOutlined,
+  DownloadOutlined
 } from '@ant-design/icons-vue'
 import { workbenchApi } from '@/api/workbench'
 import type { WorkbenchStats, WorkbenchEvent, WorkbenchEventQueryParams } from '@/api/workbench'
@@ -508,6 +512,42 @@ const truncateText = (text: string, maxLength: number) => {
 const formatDateTime = (dateStr: string) => {
   if (!dateStr) return ''
   return dayjs(dateStr).format('YYYY-MM-DD HH:mm')
+}
+
+// 导出相关
+const exportLoading = ref(false)
+
+// 导出事件列表
+const exportEventList = async () => {
+  exportLoading.value = true
+  try {
+    const params = {
+      ...queryParams,
+      page: 1,
+      pageSize: 9999
+    }
+    const res = await workbenchApi.exportEvents(params) as any
+    
+    // 创建下载链接
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    
+    // 生成文件名
+    const statusText = queryParams.eventStatus === 'pending_us' ? '等待我方处理' : 
+                       queryParams.eventStatus === 'pending_customer' ? '等待客户反馈' : '全部'
+    link.download = `待处理事件_${statusText}_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    
+    link.click()
+    window.URL.revokeObjectURL(url)
+    message.success('导出成功')
+  } catch (error) {
+    console.error('导出失败:', error)
+    message.error('导出失败')
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 // 初始化

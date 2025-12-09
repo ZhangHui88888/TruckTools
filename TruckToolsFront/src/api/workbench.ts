@@ -20,6 +20,9 @@ export interface WorkbenchEvent {
   customerName: string
   customerCompany?: string
   customerPriority: number
+  customerRemark?: string
+  customerEmail?: string
+  customerPhone?: string
   eventTime: string
   eventLocation?: string
   eventContent: string
@@ -87,5 +90,13 @@ export const workbenchApi = {
   // 手动触发超时提醒检查（仅管理员）
   checkOverdue() {
     return http.post<number>('/workbench/check-overdue')
+  },
+
+  // 导出事件列表
+  exportEvents(params: WorkbenchEventQueryParams) {
+    return http.get('/workbench/events/export', { 
+      params,
+      responseType: 'blob'
+    })
   }
 }
