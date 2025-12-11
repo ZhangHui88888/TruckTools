@@ -61,6 +61,12 @@ export interface StopFollowUpRequest {
   reason?: string
 }
 
+// 延迟提醒请求
+export interface SnoozeReminderRequest {
+  eventId: string
+  snoozeDays: number
+}
+
 export const workbenchApi = {
   // 获取工作台统计数据
   getStats() {
@@ -98,5 +104,10 @@ export const workbenchApi = {
       params,
       responseType: 'blob'
     })
+  },
+
+  // 延迟提醒事件
+  snoozeReminder(data: SnoozeReminderRequest) {
+    return http.post<void>('/workbench/events/snooze', data)
   }
 }

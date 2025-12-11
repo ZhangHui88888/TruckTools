@@ -585,4 +585,52 @@ public class WorkbenchServiceImpl implements WorkbenchService {
             default -> "全部";
         };
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void snoozeReminder(Long userId, SnoozeReminderRequest request) {
+        // 查询事件
+        CustomerEvent event = customerEventMapper.selectById(request.getEventId());
+        if (event == null) {
+            throw new BusinessException("事件不存在");
+        }
+
+        // 验证事件状态是否为未完结
+        if ("completed".equals(event.getEventStatus())) {
+            throw new BusinessException("已完结的事件无法延迟");
+        }
+
+        // 获取客户信息
+        Customer customer = customerMapper.selectById(event.getCustomerId());
+        if (customer == null) {
+            throw new BusinessException("客户不存在");
+        }
+
+        // 验证客户是否属于当前用户
+        if (!customer.getUserId().equals(userId)) {
+            throw new BusinessException("无权操作此事件");
+        }
+
+        // 将当前事件标记为已完结
+        event.setEventStatus("completed");
+        customerEventMapper.updateById(event);
+
+        // 更新客户的最后事件时间，这样延迟后才会重新触发提醒
+        // 系统会在 lastEventTime + OVERDUE_DAYS 后重新生成提醒
+        // 所以我们需要设置 lastEventTime = now + (snoozeDays - OVERDUE_DAYS)
+        // 这样实际延迟天数就是 snoozeDays
+        LocalDateTime newLastEventTime = LocalDateTime.now().plusDays(request.getSnoozeDays() - OVERDUE_DAYS);
+        customer.setLastEventTime(newLastEventTime);
+        customer.setFollowUpStatus(EVENT_STATUS_PENDING_CUSTOMER);
+        
+        // 减少待处理事件计数
+        if (customer.getPendingEventCount() != null && customer.getPendingEventCount() > 0) {
+            customer.setPendingEventCount(customer.getPendingEventCount() - 1);
+        }
+        
+        customerMapper.updateById(customer);
+
+        log.info("延迟提醒成功: eventId={}, customerId={}, snoozeDays={}", 
+                request.getEventId(), customer.getId(), request.getSnoozeDays());
+    }
 }

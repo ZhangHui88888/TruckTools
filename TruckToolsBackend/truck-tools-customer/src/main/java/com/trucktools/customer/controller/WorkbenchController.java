@@ -75,4 +75,12 @@ public class WorkbenchController {
         Long userId = SecurityUtils.getCurrentUserId();
         workbenchService.exportEvents(userId, request, response);
     }
+
+    @Operation(summary = "延迟提醒事件")
+    @PostMapping("/events/snooze")
+    public Result<Void> snoozeReminder(@Valid @RequestBody SnoozeReminderRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        workbenchService.snoozeReminder(userId, request);
+        return Result.success();
+    }
 }

@@ -43,4 +43,10 @@ public interface WorkbenchService {
      * 导出待处理事件列表
      */
     void exportEvents(Long userId, WorkbenchEventQueryRequest request, HttpServletResponse response);
+
+    /**
+     * 延迟提醒事件
+     * 将系统自动生成的提醒事件延迟指定天数
+     */
+    void snoozeReminder(Long userId, SnoozeReminderRequest request);
 }

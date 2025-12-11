@@ -225,6 +225,11 @@
                 <EyeOutlined />
                 详情
               </a-button>
+              <a-tooltip v-if="record.isSystemGenerated" title="延迟提醒">
+                <a-button size="small" class="snooze-btn" @click="showSnoozeModal(record)">
+                  <FieldTimeOutlined />
+                </a-button>
+              </a-tooltip>
               <a-popconfirm
                 title="确定不再跟进该客户吗？停止后将不再收到超时提醒。"
                 ok-text="确定停止"
@@ -243,6 +248,41 @@
         </template>
       </a-table>
     </a-card>
+
+    <!-- 延迟提醒弹窗 -->
+    <a-modal
+      v-model:open="snoozeModalVisible"
+      title="延迟提醒"
+      :confirm-loading="snoozeLoading"
+      @ok="handleSnoozeReminder"
+      @cancel="closeSnoozeModal"
+    >
+      <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
+        <a-form-item label="客户">
+          <span>{{ snoozeEvent?.customerName }}</span>
+        </a-form-item>
+        <a-form-item label="当前提醒">
+          <a-typography-paragraph
+            :ellipsis="{ rows: 2, expandable: true }"
+            :content="snoozeEvent?.eventContent"
+          />
+        </a-form-item>
+        <a-form-item label="延迟时间" required>
+          <a-select v-model:value="snoozeForm.snoozeDays" style="width: 100%">
+            <a-select-option :value="1">1 天</a-select-option>
+            <a-select-option :value="3">3 天</a-select-option>
+            <a-select-option :value="7">1 周</a-select-option>
+            <a-select-option :value="14">2 周</a-select-option>
+            <a-select-option :value="30">1 个月</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item :wrapper-col="{ offset: 6, span: 18 }">
+          <a-typography-text type="secondary">
+            延迟后，系统将在 {{ snoozeForm.snoozeDays }} 天后重新提醒您跟进此客户
+          </a-typography-text>
+        </a-form-item>
+      </a-form>
+    </a-modal>
 
     <!-- 处理事件弹窗 -->
     <a-modal
@@ -301,10 +341,11 @@ import {
   UnorderedListOutlined,
   CheckOutlined,
   EyeOutlined,
-  DownloadOutlined
+  DownloadOutlined,
+  FieldTimeOutlined
 } from '@ant-design/icons-vue'
 import { workbenchApi } from '@/api/workbench'
-import type { WorkbenchStats, WorkbenchEvent, WorkbenchEventQueryParams } from '@/api/workbench'
+import type { WorkbenchStats, WorkbenchEvent, WorkbenchEventQueryParams, SnoozeReminderRequest } from '@/api/workbench'
 
 const router = useRouter()
 
@@ -348,6 +389,14 @@ const currentEvent = ref<WorkbenchEvent | null>(null)
 const processForm = reactive({
   processContent: '',
   processTime: dayjs()
+})
+
+// 延迟提醒弹窗
+const snoozeModalVisible = ref(false)
+const snoozeLoading = ref(false)
+const snoozeEvent = ref<WorkbenchEvent | null>(null)
+const snoozeForm = reactive({
+  snoozeDays: 7  // 默认延迟7天
 })
 
 // 表格列定义
@@ -475,6 +524,41 @@ const handleStopFollowUp = async (customerId: string) => {
   } catch (error) {
     console.error('停止跟进失败:', error)
     message.error('操作失败')
+  }
+}
+
+// 显示延迟提醒弹窗
+const showSnoozeModal = (event: WorkbenchEvent) => {
+  snoozeEvent.value = event
+  snoozeForm.snoozeDays = 7  // 重置为默认7天
+  snoozeModalVisible.value = true
+}
+
+// 关闭延迟提醒弹窗
+const closeSnoozeModal = () => {
+  snoozeModalVisible.value = false
+  snoozeEvent.value = null
+}
+
+// 处理延迟提醒
+const handleSnoozeReminder = async () => {
+  if (!snoozeEvent.value) return
+
+  snoozeLoading.value = true
+  try {
+    await workbenchApi.snoozeReminder({
+      eventId: snoozeEvent.value.id,
+      snoozeDays: snoozeForm.snoozeDays
+    })
+    message.success(`已延迟 ${snoozeForm.snoozeDays} 天提醒`)
+    closeSnoozeModal()
+    fetchStats()
+    fetchEventList()
+  } catch (error) {
+    console.error('延迟提醒失败:', error)
+    message.error('延迟提醒失败')
+  } finally {
+    snoozeLoading.value = false
   }
 }
 
@@ -653,6 +737,17 @@ onMounted(() => {
     color: #ff4d4f;
     border-color: #ff4d4f;
     background: #fff1f0;
+  }
+}
+
+.snooze-btn {
+  color: #1677ff;
+  border-color: #1677ff;
+  
+  &:hover {
+    color: #4096ff;
+    border-color: #4096ff;
+    background: #e6f4ff;
   }
 }
 </style>
